@@ -8,17 +8,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//CacheMap is a struct to store results of remediation
-type CacheMap struct {
+//ResultsCache is a struct to store results of remediation
+type ResultsCache struct {
 	Items               map[string]types.ActionResult
 	CacheExpireInterval time.Duration
 	Locker              *sync.RWMutex
 }
 
-//NewCache instantiates and returns a new cache
-func NewCache(cacheExpireInterval string) (cache *CacheMap) {
+//NewResultsCache instantiates and returns a new cache
+func NewResultsCache(cacheExpireInterval string) (cache *ResultsCache) {
 	interval, _ := time.ParseDuration(cacheExpireInterval)
-	return &CacheMap{
+	return &ResultsCache{
 		Items:               make(map[string]types.ActionResult),
 		CacheExpireInterval: interval,
 		Locker:              new(sync.RWMutex),
@@ -26,7 +26,7 @@ func NewCache(cacheExpireInterval string) (cache *CacheMap) {
 }
 
 //PurgeExpired expires cache items older than specified purge interval
-func (cache *CacheMap) PurgeExpired() {
+func (cache *ResultsCache) PurgeExpired() {
 	ticker := time.NewTicker(cache.CacheExpireInterval)
 	for {
 		select {
@@ -47,7 +47,7 @@ func (cache *CacheMap) PurgeExpired() {
 
 //Set creates an entry in the map if it doesnt exist
 // or overwrites the timestamp and retry count if it exists
-func (cache *CacheMap) Set(node string, issue string, result types.ActionResult) {
+func (cache *ResultsCache) Set(node string, issue string, result types.ActionResult) {
 	cond := node + "_" + issue
 	cache.Locker.Lock()
 	curResult, ok := cache.Items[cond]
@@ -62,14 +62,14 @@ func (cache *CacheMap) Set(node string, issue string, result types.ActionResult)
 }
 
 //GetAll returns current entries of a cache
-func (cache *CacheMap) GetAll() map[string]types.ActionResult {
+func (cache *ResultsCache) GetAll() map[string]types.ActionResult {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	return cache.Items
 }
 
 //GetItem returns value of a given key and whether it exist or not
-func (cache *CacheMap) GetItem(key string) (types.ActionResult, bool) {
+func (cache *ResultsCache) GetItem(key string) (types.ActionResult, bool) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	val, found := cache.Items[key]
