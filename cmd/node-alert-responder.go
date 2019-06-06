@@ -91,12 +91,12 @@ func main() {
 	log.Info("Successfully generated k8 client for node-alert-responder")
 	alertCh := make(chan []types.AlertAction)
 	//resultsCh := make(chan map[string]types.ActionResult)
-	cache := cache.NewCache(CacheExpireInterval)
+	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
 
 	//Watcher
 	go func() {
 		log.Info("Starting controller for node-alert-responder")
-		controller.Start(clientset, aro.Namespace, aro.AlertConfigMap, plays, alertCh)
+		controller.Start(clientset, aro.AlertsNamespace, aro.AlertConfigMap, plays, alertCh)
 		log.Info("Watcher - Stopping controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -107,7 +107,7 @@ func main() {
 	//Remediator
 	go func() {
 		log.Info("Starting remediator for node-alert-responder")
-		controller.Remediate(clientset, aro.CacheExpireInterval, aro.ResultsUpdateInterval, cache, alertCh)
+		controller.Remediate(clientset, resultsCache, alertCh)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -118,7 +118,7 @@ func main() {
 	//Updater
 	go func() {
 		log.Info("Starting results configmap updater for node-alert-responder")
-		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, cache)
+		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, resultsCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)

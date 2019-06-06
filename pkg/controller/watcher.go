@@ -65,7 +65,7 @@ func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 
 func (c *AlertResponderController) configMapDelete(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("Watcher - Received configMap delete event for %s in watcher.go", configMap.AlertsNamespace)
+	log.Infof("Watcher - Received configMap delete event for %s in watcher.go", configMap.Name)
 }
 
 //NewAlertResponderController creates a initializes AlertResponderController struct
