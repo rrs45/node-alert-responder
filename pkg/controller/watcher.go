@@ -65,7 +65,7 @@ func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 
 func (c *AlertResponderController) configMapDelete(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("Watcher - Received configMap delete event for %s in watcher.go", configMap.Namespace)
+	log.Infof("Watcher - Received configMap delete event for %s in watcher.go", configMap.AlertsNamespace)
 }
 
 //NewAlertResponderController creates a initializes AlertResponderController struct
@@ -94,19 +94,17 @@ func NewAlertResponderController(informerFactory informers.SharedInformerFactory
 }
 
 //Start starts the controller
-func Start(clientset *kubernetes.Clientset, namespace string, configMap string, plays map[string]string, alertch chan<- []types.AlertAction) {
+func Start(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, plays map[string]string, alertch chan<- []types.AlertAction) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
-	log.Info("Watcher - Creating informer factory for node-alert-responder to watch in ", namespace, " namespace.")
+	log.Info("Watcher - Creating informer factory for node-alert-responder to watch in ", AlertsNamespace, " AlertsNamespace.")
 	//Create shared cache informer which resync's every 24hrs
-	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, namespace,
+	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, AlertsNamespace,
 		func(opt *metav1.ListOptions) {
 			opt.FieldSelector = fmt.Sprintf("metadata.name=%s", configMap)
 		})
-	/*factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, namespace,
-	func(opt *metav1.ListOptions) {})*/
 	controller := NewAlertResponderController(factory, plays, alertch)
 	stop := make(chan struct{})
 	defer close(stop)
