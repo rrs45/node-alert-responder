@@ -20,7 +20,7 @@ import (
 	"github.com/box-node-alert-responder/cmd/options"
 	cache "github.com/box-node-alert-responder/pkg/cache"
 	"github.com/box-node-alert-responder/pkg/controller"
-	"github.com/box-node-alert-responder/pkg/controller/types"
+	"github.com/box-node-alert-responder/pkg/types"
 )
 
 func initClient(aro *options.AlertResponderOptions) (*kubernetes.Clientset, error) {
@@ -90,7 +90,7 @@ func main() {
 	}
 	log.Info("Successfully generated k8 client for node-alert-responder")
 	alertCh := make(chan []types.AlertAction)
-	//resultsCh := make(chan map[string]types.ActionResult)
+	scheduleCh := make(chan string, aro.MaxTasks)
 	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
 
 	//Watcher
@@ -115,6 +115,10 @@ func main() {
 		wg.Done()
 	}()
 
+	go func(){
+		log.Info("Starting scheduler")
+		
+	}
 	//Updater
 	go func() {
 		log.Info("Starting results configmap updater for node-alert-responder")

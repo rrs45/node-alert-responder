@@ -20,6 +20,8 @@ type AlertResponderOptions struct {
 
 	ResultsUpdateInterval string
 	CacheExpireInterval   string
+
+	MaxTasks int
 }
 
 //NewAlertResponderOptions returns a flagset
@@ -42,6 +44,8 @@ func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(&aro.ResultsUpdateInterval, "results-update-interval", "30s", "Time period after which cache entries will expire")
 	fs.StringVar(&aro.CacheExpireInterval, "cache-expire-interval", "48h", "Time period after which cache entries will expire")
+
+	fs.IntVar(&aro.MaxTasks, "max-tasks", 2, "Maximum number of concurrent remediation tasks at any time")
 }
 
 func (aro *AlertResponderOptions) ValidOrDie() {
