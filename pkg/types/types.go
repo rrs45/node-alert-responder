@@ -18,4 +18,11 @@ type ActionResult struct {
 	ActionName string    `json:"name"`      // Script or Ansible play name
 	Success    bool      `json:"success"`   // Whether it was fixed or not
 	Retry      int       `json:"retry"`     // Number of times to retry the play if not successful
+	Worker     string    `json:"worker"`    // Worker pod who worked on this node & issue
+}
+
+type InProgress struct {
+	Timestamp  time.Time
+	ActionName string
+	Worker     string
 }

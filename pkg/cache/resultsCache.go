@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/box-node-alert-responder/pkg/controller/types"
+	"github.com/box-node-alert-responder/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,16 +47,23 @@ func (cache *ResultsCache) PurgeExpired() {
 
 //Set creates an entry in the map if it doesnt exist
 // or overwrites the timestamp and retry count if it exists
-func (cache *ResultsCache) Set(node string, issue string, result types.ActionResult) {
+func (cache *ResultsCache) Set(node string, issue string, result types.ActionResult) bool {
 	cond := node + "_" + issue
 	cache.Locker.Lock()
-	curResult, ok := cache.Items[cond]
-	if !ok {
+	curResult, found := cache.Items[cond]
+	if !found {
 		cache.Items[cond] = result
-	} else {
-		curResult.Timestamp = result.Timestamp
-		curResult.Retry++
-		cache.Items[cond] = curResult
+		return true
+	} 
+	// If last success failed or passed
+	if curResult.ActionName == result.ActionName {
+			curResult.Timestamp = result.Timestamp
+			curResult.Retry++
+
+			cache.Items[cond] = curResult
+		} else {
+			curResult.Retry=0
+		}
 	}
 	cache.Locker.Unlock()
 }

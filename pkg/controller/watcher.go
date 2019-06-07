@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/box-node-alert-responder/pkg/controller/types"
+	"github.com/box-node-alert-responder/pkg/types"
 )
 
 //AlertResponderController struct for encapsulating generic Informer methods and configMap informer
