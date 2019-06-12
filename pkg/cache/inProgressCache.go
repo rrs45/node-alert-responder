@@ -1,14 +1,12 @@
 package cache
 
 import (
-	"reflect"
 	"sync"
 	"time"
 
-	"github.com/box-node-alert-responder/pkg/controller/types"
+	"github.com/box-node-alert-responder/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
-
 
 //InProgressCache is a struct to store InProgress of remediation
 type InProgressCache struct {
@@ -18,10 +16,10 @@ type InProgressCache struct {
 }
 
 //NewInProgressCache instantiates and returns a new cache
-func NewInProgressCache(cacheExpireInterval string) (cache *InProgressCache) {
+func NewInProgressCache(cacheExpireInterval string) *InProgressCache {
 	interval, _ := time.ParseDuration(cacheExpireInterval)
 	return &InProgressCache{
-		Items:               make([map[string]types.InProgress),
+		Items:               make(map[string]types.InProgress),
 		CacheExpireInterval: interval,
 		Locker:              new(sync.RWMutex),
 	}
@@ -48,33 +46,28 @@ func (cache *InProgressCache) PurgeExpired() {
 }
 
 //Set appends entry to the slice
-func (cache *InProgressCache) Set(key string, result types.InProgress) bool{
+func (cache *InProgressCache) Set(key string, action types.InProgress) {
 	cache.Locker.Lock()
 	defer cache.Locker.Unlock()
-	curResult, found := cache.Items[key]
-	//No play is currently running
-	if !found {
-		cache.Items[cond] = result
-		return true
-	} 
-	return false	
+	cache.Items[key] = action	
 }
 
 //GetAll returns current entries of a cache
-func (cache *InProgressCache) GetAll() []types.InProgress {
+func (cache *InProgressCache) GetAll() map[string]types.InProgress {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	return cache.Items
 }
 
-func (cache *InProgressCache) Count() []types.InProgress {
+//Count returns number of items in cache
+func (cache *InProgressCache) Count() int {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	return len(cache.Items)
 }
 
 //GetItem returns value of a given key and whether it exist or not
-func (cache *InProgressCache) GeItem(key string) (types.InProgress, bool) {
+func (cache *InProgressCache) GetItem(key string) (types.InProgress, bool) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	val, found := cache.Items[key]
@@ -85,7 +78,7 @@ func (cache *InProgressCache) GeItem(key string) (types.InProgress, bool) {
 }
 
 //DelItem deletes a cache item with a given key
-func (cache *InProgressCache) DelItem(key string) (types.InProgress, bool) {
+func (cache *InProgressCache) DelItem(key string)  {
 	cache.Locker.Lock()
 	delete(cache.Items,key)
 	cache.Locker.Unlock()

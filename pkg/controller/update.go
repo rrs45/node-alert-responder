@@ -7,8 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/box-node-alert-responder/pkg/types"
 	"github.com/box-node-alert-responder/pkg/cache"
-	"github.com/box-node-alert-responder/pkg/controller/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -17,7 +17,7 @@ import (
 
 //Update creates config map if it doesnt exist and
 //updates the config map with alerts received from watcher
-func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUpdateInterval string, cache *cache.ResultsCache) {
+func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUpdateInterval string, resultsCache *cache.ResultsCache) {
 	bufPrev := make(map[string]types.ActionResult)
 	bufCur := make(map[string]types.ActionResult)
 	buf := make(map[string]string)
@@ -34,7 +34,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 		select {
 		case <-ticker.C:
 			log.Info("Updater - Time to save results cache to configmap: ", configMap)
-			bufCur = cache.GetAll()
+			bufCur = resultsCache.GetAll()
 			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
 				log.Info("Updater - No new entries found")

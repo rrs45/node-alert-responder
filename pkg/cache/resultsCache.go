@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/box-node-alert-responder/pkg/types"
+
 	log "github.com/sirupsen/logrus"
 )
+
 
 //ResultsCache is a struct to store results of remediation
 type ResultsCache struct {
@@ -16,7 +18,7 @@ type ResultsCache struct {
 }
 
 //NewResultsCache instantiates and returns a new cache
-func NewResultsCache(cacheExpireInterval string) (cache *ResultsCache) {
+func NewResultsCache(cacheExpireInterval string) *ResultsCache {
 	interval, _ := time.ParseDuration(cacheExpireInterval)
 	return &ResultsCache{
 		Items:               make(map[string]types.ActionResult),
@@ -41,32 +43,45 @@ func (cache *ResultsCache) PurgeExpired() {
 			}
 			cache.Locker.Unlock()
 
-		}
+		} 
 	}
 }
 
 //Set creates an entry in the map if it doesnt exist
 // or overwrites the timestamp and retry count if it exists
-func (cache *ResultsCache) Set(node string, issue string, result types.ActionResult) bool {
-	cond := node + "_" + issue
+func (cache *ResultsCache) Set(cond string, t time.Time , worker string, success bool) {
 	cache.Locker.Lock()
-	curResult, found := cache.Items[cond]
-	if !found {
-		cache.Items[cond] = result
-		return true
-	} 
-	// If last success failed or passed
-	if curResult.ActionName == result.ActionName {
-			curResult.Timestamp = result.Timestamp
-			curResult.Retry++
-
-			cache.Items[cond] = curResult
+	var retryCount int
+	if prevResult, found := cache.Items[cond]; found {
+		log.Infof("Results Cache - %s found in cache", cond)
+		if success {
+			log.Infof("Results Cache - Current action was successful for %s", cond)
+			retryCount = 0
 		} else {
-			curResult.Retry=0
+				log.Infof("Results Cache - Current action failed for %s", cond)
+				retryCount = prevResult.Retry + 1
+			}
+	} else {
+		log.Infof("Results Cache - %s not found in cache", cond)
+		if success {
+			log.Infof("Results Cache - Current action was successful for %s", cond)
+			retryCount = 0
+		} else {
+			log.Infof("Results Cache - Current action failed for %s", cond)
+			retryCount = 1
 		}
+		
+	}
+
+	cache.Items[cond] = types.ActionResult{
+		Timestamp: t,
+		Worker: worker,
+		Success: success,
+		Retry: retryCount,
 	}
 	cache.Locker.Unlock()
 }
+
 
 //GetAll returns current entries of a cache
 func (cache *ResultsCache) GetAll() map[string]types.ActionResult {
