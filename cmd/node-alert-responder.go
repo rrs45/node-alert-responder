@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/box-node-alert-responder/cmd/options"
-	cache "github.com/box-node-alert-responder/pkg/cache"
+	"github.com/box-node-alert-responder/pkg/cache"
 	"github.com/box-node-alert-responder/pkg/controller"
 	"github.com/box-node-alert-responder/pkg/types"
 )
@@ -32,16 +32,16 @@ func initClient(aro *options.AlertResponderOptions) (*kubernetes.Clientset, erro
 			panic(err)
 		}
 		return kubernetes.NewForConfig(config)
-	} else {
-		kubeConfig, err := restclient.InClusterConfig()
-		if err != nil {
-			panic(err)
-		}
-		if aro.ApiServerHost != "" {
-			kubeConfig.Host = aro.ApiServerHost
-		}
-		return kubernetes.NewForConfig(kubeConfig)
+	} 
+	kubeConfig, err := restclient.InClusterConfig()
+	if err != nil {
+		panic(err)
 	}
+	if aro.APIServerHost != "" {
+		kubeConfig.Host = aro.APIServerHost
+	}
+	return kubernetes.NewForConfig(kubeConfig)
+	
 }
 
 func startHTTPServer(addr string, port string) *http.Server {
@@ -75,12 +75,14 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f) */
 	plays := map[string]string{
-		"NPD-KubeletProxyCertExpiring": "restart_kubeletproxy.yml"}
+		"NPD-PuppetRunDelayed": "check_puppet.yml",
+		"NPD-ChronyIssue": "check_chrony.yml" }
+	
 	log.Info(plays)
 	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
@@ -90,8 +92,9 @@ func main() {
 	}
 	log.Info("Successfully generated k8 client for node-alert-responder")
 	alertCh := make(chan []types.AlertAction)
-	scheduleCh := make(chan string, aro.MaxTasks)
 	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
+	inProgressCache := cache.NewInProgressCache(aro.CacheExpireInterval)
+	todoCache := cache.NewTodoCache(aro.CacheExpireInterval)
 
 	//Watcher
 	go func() {
@@ -107,7 +110,7 @@ func main() {
 	//Remediator
 	go func() {
 		log.Info("Starting remediator for node-alert-responder")
-		controller.Remediate(clientset, resultsCache, alertCh)
+		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, aro.WaitAfterSuccess, aro.MaxRetry, todoCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -115,15 +118,21 @@ func main() {
 		wg.Done()
 	}()
 
-	go func(){
-		log.Info("Starting scheduler")
-		
-	}
 	//Updater
 	go func() {
 		log.Info("Starting results configmap updater for node-alert-responder")
 		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, resultsCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
+		}
+		wg.Done()
+	}()
+
+	//Scheduler
+	go func() {
+		log.Info("Starting scheduler for node-alert-responder")
+		controller.ScheduleTask(resultsCache, inProgressCache, todoCache, aro.MaxTasks)
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

@@ -37,11 +37,6 @@ func (c *AlertResponderController) Run(stopCh chan struct{}) error {
 	return nil
 }
 
-func (c *AlertResponderController) configMapAdd(obj interface{}) {
-	configMap := obj.(*v1.ConfigMap)
-	log.Infof("Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
-}
-
 func playFilter(cm map[string]string, plays map[string]string) []types.AlertAction {
 	var actions []types.AlertAction
 	for item, param := range cm {
@@ -49,7 +44,7 @@ func playFilter(cm map[string]string, plays map[string]string) []types.AlertActi
 		if play, ok := plays[alert[1]]; ok {
 			actions = append(actions, types.AlertAction{
 				Node:   alert[0],
-				Issue:  alert[1],
+				Condition:  alert[1],
 				Params: param,
 				Action: play})
 		}
@@ -57,10 +52,28 @@ func playFilter(cm map[string]string, plays map[string]string) []types.AlertActi
 	return actions
 }
 
+func (c *AlertResponderController) configMapAdd(obj interface{}) {
+	configMap := obj.(*v1.ConfigMap)
+	log.Infof("Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
+	actions := playFilter(configMap.Data, c.plays)
+	if len(actions) > 0 {
+		log.Infof("Watcher - Found %d issues to be fixed", len(actions))
+		c.alertch <- actions
+	} else {
+		log.Infof("Watcher - Found matching issues to be fixed")
+	}
+	
+}
+
 func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 	newconfigMap := newCM.(*v1.ConfigMap)
-
-	c.alertch <- playFilter(newconfigMap.Data, c.plays)
+	actions := playFilter(newconfigMap.Data, c.plays)
+	if len(actions) > 0 {
+		log.Infof("Watcher - Found %d issues to be fixed", len(actions))
+		c.alertch <- actions
+	} else {
+		log.Infof("Watcher - Found matching issues to be fixed")
+	}
 }
 
 func (c *AlertResponderController) configMapDelete(obj interface{}) {

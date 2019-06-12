@@ -6,10 +6,11 @@ import (
 	"time"
 )
 
+//AlertResponderOptions defines options for node-alert-responder
 type AlertResponderOptions struct {
 	ServerAddress string
 	ServerPort    string
-	ApiServerHost string
+	APIServerHost string
 	LogFile       string
 
 	AlertsNamespace  string
@@ -22,6 +23,9 @@ type AlertResponderOptions struct {
 	CacheExpireInterval   string
 
 	MaxTasks int
+
+	WaitAfterSuccess string
+	MaxRetry int
 }
 
 //NewAlertResponderOptions returns a flagset
@@ -33,7 +37,7 @@ func NewAlertResponderOptions() *AlertResponderOptions {
 func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&aro.ServerAddress, "address", "127.0.0.1", "Address to bind the alert generator server.")
 	fs.StringVar(&aro.ServerPort, "port", "8090", "Port to bind the alert generator server for /healthz endpoint")
-	fs.StringVar(&aro.ApiServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
+	fs.StringVar(&aro.APIServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
 	fs.StringVar(&aro.LogFile, "log-file", "/var/log/service/node-alert-responder.log", "Log file to store all logs")
 
 	fs.StringVar(&aro.AlertsNamespace, "alert-namespace", "node-alert-generator", "Namespace where alerts config map will be watched from")
@@ -46,8 +50,12 @@ func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&aro.CacheExpireInterval, "cache-expire-interval", "48h", "Time period after which cache entries will expire")
 
 	fs.IntVar(&aro.MaxTasks, "max-tasks", 2, "Maximum number of concurrent remediation tasks at any time")
+
+	fs.StringVar(&aro.WaitAfterSuccess, "success-wait-interval", "25h", "Wait period after a successful run on a given node & condition")
+	fs.IntVar(&aro.MaxRetry, "max-retry", 3, "Maximum number of retry after a failed run")
 }
 
+//ValidOrDie checks some of the options are valid
 func (aro *AlertResponderOptions) ValidOrDie() {
 	_, err := time.ParseDuration(aro.CacheExpireInterval)
 	if err != nil {
@@ -59,16 +67,9 @@ func (aro *AlertResponderOptions) ValidOrDie() {
 		log.Error("Options - Incorrect results-update-interval, sample format: 10s or 1m or 1h; ", err1)
 		log.Panic("Incorrect options")
 	}
-	/*dir, _ := path.Split(aro.LogFile)
-	_, err1 := os.Stat(dir)
-	if err1 != nil {
-		log.Errorf("Options - Directory does not exist: %s ", dir)
-	}
-	_, err2 := time.ParseDuration(aro.AlertIgnoreInterval)
+	_, err2 := time.ParseDuration(aro.WaitAfterSuccess)
 	if err2 != nil {
-		log.Error("Options - Incorrect alert-ignore-interval, sample format: 10s or 1m or 1h; ", err)
-	}*/
-	if err != nil || err1 != nil {
+		log.Error("Options - Incorrect success-wait-interval, sample format: 10s or 1m or 1h; ", err1)
 		log.Panic("Incorrect options")
 	}
 }
