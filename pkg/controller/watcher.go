@@ -60,7 +60,7 @@ func (c *AlertResponderController) configMapAdd(obj interface{}) {
 		log.Infof("Watcher - Found %d issues to be fixed", len(actions))
 		c.alertch <- actions
 	} else {
-		log.Infof("Watcher - Found matching issues to be fixed")
+		log.Infof("Watcher - Found no matching issues to be fixed")
 	}
 	
 }
