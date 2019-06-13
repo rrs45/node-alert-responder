@@ -9,7 +9,11 @@ message TaskRequest {
     string node = 1;
     string condition = 2;
     string action = 3;
-    string params = 4; 
+    string params = 4;
+}
+
+message TaskAck {
+    string condition = 1;
 }
 
 message TaskResult {
@@ -22,5 +26,9 @@ message TaskResult {
 
 }
 service TaskService{ 
-    rpc Task(TaskRequest) returns (TaskResult) {};
+    rpc Task(TaskRequest) returns (TaskAck);
+}
+
+service TaskReceiveService{
+    rpc ResultUpdate(TaskResult) returns (TaskAck);
 }

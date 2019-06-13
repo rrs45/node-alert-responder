@@ -23,7 +23,7 @@ import (
 	"github.com/box-node-alert-responder/pkg/types"
 )
 
-func initClient(aro *options.AlertResponderOptions) (*kubernetes.Clientset, error) {
+func initClient(apiserver string) (*kubernetes.Clientset, error) {
 
 	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".kube", "config")); err == nil {
 		kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
@@ -37,8 +37,8 @@ func initClient(aro *options.AlertResponderOptions) (*kubernetes.Clientset, erro
 	if err != nil {
 		panic(err)
 	}
-	if aro.APIServerHost != "" {
-		kubeConfig.Host = aro.APIServerHost
+	if apiserver != "" {
+		kubeConfig.Host = apiserver
 	}
 	return kubernetes.NewForConfig(kubeConfig)
 	
@@ -75,18 +75,18 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f) */
 	plays := map[string]string{
-		"NPD-PuppetRunDelayed": "check_puppet.yml",
-		"NPD-ChronyIssue": "check_chrony.yml" }
+		"NPD-PuppetRunDelayed": "raj_test.yml",
+		"NPD-ChronyIssue": "raj_test.yml" }
 	
 	log.Info(plays)
 	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
 
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
-	clientset, err := initClient(aro)
+	clientset, err := initClient(aro.APIServerHost)
 	if err != nil {
 		panic(err)
 	}
@@ -95,6 +95,7 @@ func main() {
 	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
 	inProgressCache := cache.NewInProgressCache(aro.CacheExpireInterval)
 	todoCache := cache.NewTodoCache(aro.CacheExpireInterval)
+	receiver := controller.NewReceiver(resultsCache, inProgressCache)
 
 	//Watcher
 	go func() {
@@ -136,6 +137,13 @@ func main() {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
+		wg.Done()
+	}()
+
+	//Receiver
+	go func() {
+		log.Info("Starting GRPC server for node-alert-responder")
+		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
 		wg.Done()
 	}()
 

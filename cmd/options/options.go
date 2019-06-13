@@ -10,6 +10,8 @@ import (
 type AlertResponderOptions struct {
 	ServerAddress string
 	ServerPort    string
+	ReceiverAddress string
+	ReceiverPort string
 	APIServerHost string
 	LogFile       string
 
@@ -37,6 +39,8 @@ func NewAlertResponderOptions() *AlertResponderOptions {
 func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&aro.ServerAddress, "address", "127.0.0.1", "Address to bind the alert generator server.")
 	fs.StringVar(&aro.ServerPort, "port", "8090", "Port to bind the alert generator server for /healthz endpoint")
+	fs.StringVar(&aro.ReceiverAddress, "receiver-address", "127.0.0.1", "Address to bind the alert generator server.")
+	fs.StringVar(&aro.ReceiverPort, "receiver-port", "50040", "Port to bind the alert generator server for /healthz endpoint")
 	fs.StringVar(&aro.APIServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
 	fs.StringVar(&aro.LogFile, "log-file", "/var/log/service/node-alert-responder.log", "Log file to store all logs")
 
