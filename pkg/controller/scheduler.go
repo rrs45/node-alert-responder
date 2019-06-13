@@ -12,7 +12,6 @@ import (
 
 //ScheduleTask schedules a given task to worker
 func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int) {
-
 	conn, err := grpc.Dial("127.0.0.1:50050", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Unable to connect to worker: %v",err)
@@ -31,6 +30,10 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 		if todoCache.TodoList.Len() >  maxTasks-1 {
 			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
 			task, _ := todoCache.GetItem()
+			if task.Node == "" || task.Condition == "" || task.Action == "" || task.Params == "" {
+				log.Infof("Scheduler - Not enough value to process: %+v", task)
+			}
+			//log.Infof("Scheduler - todo cache item: %+v", task)
 			limit <- struct{}{}	
 			//wg.Add(1)
 			go func() {
@@ -42,7 +45,7 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					}
 				log.Infof("Scheduler - Found a task in Todo cache")*/
 
-				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), 	location)
+				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
 				if err != nil {
 					log.Fatalf("Scheduler - unable to parse time: %v", err)
 				}
@@ -61,6 +64,7 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					Action: task.Action,
 					Params: task.Params,
 				}
+				log.Infof("Scheduler - sending req: %+v", req)
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
 					log.Errorf("Unable to send request to worker: %v",err)
@@ -68,20 +72,12 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					progressCache.DelItem(cond)
 					return
 				}
-				log.Infof("Response: %+v",res)
-				epoch := res.Timestamp.GetSeconds()
-
-				t := time.Unix(epoch,0).In(location)
-				log.Infof("Scheduler - Deleting %s in inprogress cache", cond)
-				progressCache.DelItem(cond)
-				log.Infof("Scheduler - Setting %s in results cache", cond)
-				resultsCache.Set(cond, t, res.Worker, res.Success)
-				
+				log.Infof("Scheduler - Successfully sent task: %v to worker",res)
 				<-limit
 				//wg.Done()
 				}()
 			} else {
-				log.Info("Scheduler - No tasks in Todo cache")
+				log.Info("Scheduler - No tasks in Todo cache waiting 10 seconds")
 				time.Sleep(time.Duration(10) * time.Second)
 				continue
 			}

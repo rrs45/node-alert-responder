@@ -11,20 +11,12 @@ import (
 
 //Remediate kicks off remediation
 func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan []types.AlertAction, successWaitInterval string, maxRetry int, todo *cache.TodoCache ) {
-	/*frequency, err := time.ParseDuration("30s")
-	if err != nil {
-		log.Fatal("Updater - Could not parse interval: ", err)
-	}
-	ticker := time.NewTicker(frequency) */
 	for {
 		select {
-		/*case <-ticker.C:
-			fmt.Println("Responder - \n", resultsCache.GetAll())
-		default:
-			select {*/
 			case r := <-alertCh:
-				//log.Info(r)
+				//log.Infof("%+v",r)
 				for _, item := range r {
+					//log.Infof("%+v",item)
 					condition := item.Node + "_" + item.Condition
 					run := scheduleFilter(condition, resultsCache, progressCache, successWaitInterval, maxRetry)
 					if run {	
