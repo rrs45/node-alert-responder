@@ -27,27 +27,20 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 	//var wg = sync.WaitGroup{}
 	for {	
 		//task, found := todoCache.GetItem()
-		if todoCache.TodoList.Len() >  maxTasks-1 {
+		if todoCache.TodoList.Len() > 0 {
 			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
 			task, _ := todoCache.GetItem()
 			if task.Node == "" || task.Condition == "" || task.Action == "" || task.Params == "" {
 				log.Infof("Scheduler - Not enough value to process: %+v", task)
+				continue
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
 			limit <- struct{}{}	
-			//wg.Add(1)
+			
 			go func() {
-				todoCache.DelItem()
-				/*if progressCache.Count() >= maxTasks{
-					log.Infof("Scheduler - Max number of concurrent tasks: %d has been reached", maxTasks)
-						//time.Sleep(time.Duration(10) * time.Second)
-						return
-					}
-				log.Infof("Scheduler - Found a task in Todo cache")*/
-
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
 				if err != nil {
-					log.Fatalf("Scheduler - unable to parse time: %v", err)
+					log.Fatalf("Scheduler routine - unable to parse time: %v", err)
 				}
 				inProgressItem := types.InProgress{
 					Timestamp: tNow,
@@ -55,7 +48,7 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					Worker: "Worker-1",
 				}
 				cond := task.Node+"_"+task.Condition
-				log.Infof("Scheduler - Setting %s in inprogress cache", cond)
+				log.Infof("Scheduler routine - Setting %s in inprogress cache", cond)
 				progressCache.Set(cond, inProgressItem)
 
 				req := &workerpb.TaskRequest{
@@ -64,7 +57,7 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					Action: task.Action,
 					Params: task.Params,
 				}
-				log.Infof("Scheduler - sending req: %+v", req)
+				log.Infof("Scheduler routine - sending req: %+v", req)
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
 					log.Errorf("Unable to send request to worker: %v",err)
@@ -72,10 +65,11 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 					progressCache.DelItem(cond)
 					return
 				}
-				log.Infof("Scheduler - Successfully sent task: %v to worker",res)
+				log.Infof("Scheduler routine - Successfully sent task: %v to worker",res)
 				<-limit
-				//wg.Done()
 				}()
+				log.Infof("Scheduler - deleting %s from todo cache",task.Node+"_"+task.Condition)
+				todoCache.DelItem()
 			} else {
 				log.Info("Scheduler - No tasks in Todo cache waiting 10 seconds")
 				time.Sleep(time.Duration(10) * time.Second)

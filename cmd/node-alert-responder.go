@@ -75,14 +75,13 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f) */
 	plays := map[string]string{
-		"NPD-PuppetRunDelayed": "raj_test.yml",
-		"NPD-ChronyIssue": "raj_test.yml" }
+		"NPD-KubeletIsDown": "raj_test.yml"	}
 	
 	log.Info(plays)
 	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
 
 	var wg sync.WaitGroup
-	wg.Add(5)
+	wg.Add(6)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
@@ -146,6 +145,14 @@ func main() {
 		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
 		wg.Done()
 	}()
+
+	//Results Cache cleanup
+	go func() {
+		log.Info("Starting results cache cleaner for node-alert-responder")
+		resultsCache.PurgeExpired()
+		wg.Done()
+	}()
+
 
 	wg.Wait()
 }
