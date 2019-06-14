@@ -39,7 +39,7 @@ func ScheduleTask(resultsCache *cache.ResultsCache, progressCache *cache.InProgr
 			
 			go func() {
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
-				if err != nil {
+				if err != nil { 
 					log.Fatalf("Scheduler routine - unable to parse time: %v", err)
 				}
 				inProgressItem := types.InProgress{

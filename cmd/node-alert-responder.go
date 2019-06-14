@@ -74,8 +74,11 @@ func main() {
 	/*f, _ := os.OpenFile(aro.LogFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	defer f.Close()
 	log.SetOutput(f) */
-	plays := map[string]string{
-		"NPD-KubeletIsDown": "raj_test.yml"	}
+	plays := map[string]types.ActionMap{
+		"NPD-KubeletIsDown": types.ActionMap{
+		 Action: "raj_test.yml",
+		SuccessWait: "1m",
+	    FailedRetry: 2,	} }
 	
 	log.Info(plays)
 	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
@@ -90,7 +93,7 @@ func main() {
 		panic(err)
 	}
 	log.Info("Successfully generated k8 client for node-alert-responder")
-	alertCh := make(chan []types.AlertAction)
+	alertCh := make(chan []types.AlertMap)
 	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
 	inProgressCache := cache.NewInProgressCache(aro.CacheExpireInterval)
 	todoCache := cache.NewTodoCache(aro.CacheExpireInterval)
@@ -110,7 +113,7 @@ func main() {
 	//Remediator
 	go func() {
 		log.Info("Starting remediator for node-alert-responder")
-		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, aro.WaitAfterSuccess, aro.MaxRetry, todoCache)
+		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
