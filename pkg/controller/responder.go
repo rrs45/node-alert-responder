@@ -10,7 +10,7 @@ import (
 )
 
 //Remediate kicks off remediation
-func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan []types.AlertAction, successWaitInterval string, maxRetry int, todo *cache.TodoCache ) {
+func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan []types.AlertMap, todo *cache.TodoCache ) {
 	for {
 		select {
 			case r := <-alertCh:
@@ -18,7 +18,7 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 				for _, item := range r {
 					//log.Infof("%+v",item)
 					condition := item.Node + "_" + item.Condition
-					run := scheduleFilter(condition, resultsCache, progressCache, successWaitInterval, maxRetry)
+					run := scheduleFilter(condition, resultsCache, progressCache, item.SuccessWait, item.FailedRetry)
 					if run {	
 						log.Infof("Responder - Setting %s condition in Todo cache", condition)
 						log.Infof("Responder - progress cache count: %v", progressCache.Count())
@@ -30,7 +30,7 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 
 					}
 			    }
-		}
+		} 
 	}
 }
 

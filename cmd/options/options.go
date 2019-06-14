@@ -25,9 +25,6 @@ type AlertResponderOptions struct {
 	CacheExpireInterval   string
 
 	MaxTasks int
-
-	WaitAfterSuccess string
-	MaxRetry int
 }
 
 //NewAlertResponderOptions returns a flagset
@@ -55,8 +52,6 @@ func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
 
 	fs.IntVar(&aro.MaxTasks, "max-tasks", 2, "Maximum number of concurrent remediation tasks at any time")
 
-	fs.StringVar(&aro.WaitAfterSuccess, "success-wait-interval", "25h", "Wait period after a successful run on a given node & condition")
-	fs.IntVar(&aro.MaxRetry, "max-retry", 3, "Maximum number of retry after a failed run")
 }
 
 //ValidOrDie checks some of the options are valid
@@ -71,9 +66,5 @@ func (aro *AlertResponderOptions) ValidOrDie() {
 		log.Error("Options - Incorrect results-update-interval, sample format: 10s or 1m or 1h; ", err1)
 		log.Panic("Incorrect options")
 	}
-	_, err2 := time.ParseDuration(aro.WaitAfterSuccess)
-	if err2 != nil {
-		log.Error("Options - Incorrect success-wait-interval, sample format: 10s or 1m or 1h; ", err1)
-		log.Panic("Incorrect options")
-	}
+
 }

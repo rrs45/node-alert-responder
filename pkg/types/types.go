@@ -11,12 +11,29 @@ const RFC3339local = "2006-01-02T15:04:05Z"
 const LocalTZ = "America/Los_Angeles"
 
 
+//ActionMap represents parameters to define an action
+type ActionMap struct { 
+	Action string
+	SuccessWait string
+	FailedRetry int
+}
+
 //AlertAction is a struct mapping alerts to actions
 type AlertAction struct {
 	Node   string
 	Condition string // Condition name
 	Action string
-	Params string	
+	Params string
+}
+
+//AlertMap is a struct combining alert and the respective play parameters
+type AlertMap struct {
+	Node   string
+	Condition string // Condition name
+	Action string
+	Params string
+	SuccessWait string
+	FailedRetry int
 }
 
 //ActionResult is a struct to represent result of a remediation
