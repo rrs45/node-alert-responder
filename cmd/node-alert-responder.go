@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
@@ -75,16 +76,20 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f) */
 	plays := map[string]types.ActionMap{
-		"NPD-KubeletIsDown": types.ActionMap{
-		 Action: "raj_test.yml",
+		"NPD-PuppetRunDelayed": types.ActionMap{
+		 Action: "test1.yml",
 		SuccessWait: "1m",
-	    FailedRetry: 2,	} }
+		FailedRetry: 2,	},
+		"NPD-ChronyIssue": types.ActionMap{
+			Action: "test1.yml",
+		   SuccessWait: "1m",
+		   FailedRetry: 2,	} }
 	
 	log.Info(plays)
 	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
 
 	var wg sync.WaitGroup
-	wg.Add(6)
+	wg.Add(7)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
@@ -97,34 +102,59 @@ func main() {
 	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
 	inProgressCache := cache.NewInProgressCache(aro.CacheExpireInterval)
 	todoCache := cache.NewTodoCache(aro.CacheExpireInterval)
-	receiver := controller.NewReceiver(resultsCache, inProgressCache)
-
-	//Watcher
+	workerCache := cache.NewWorkerCache()
+	receiver := controller.NewReceiver(resultsCache, inProgressCache, workerCache)
+	
+	//WorkerWatcherStart
 	go func() {
-		log.Info("Starting controller for node-alert-responder")
-		controller.Start(clientset, aro.AlertsNamespace, aro.AlertConfigMap, plays, alertCh)
-		log.Info("Watcher - Stopping controller for node-alert-responder")
+		log.Info("Starting worker watcher controller for node-alert-responder")
+		controller.WorkerWatcherStart(clientset, aro.WorkerNamespace, workerCache)
+		log.Info("Watcher - Stopping worker watcher controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
 		wg.Done()
 	}()
+	log.Info("Sleeping 10 seconds for workers to be discovered")
+	time.Sleep(10*time.Second)
 
-	//Remediator
+	//Receiver
 	go func() {
-		log.Info("Starting remediator for node-alert-responder")
-		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache)
+		controller.GetWorkerStatus(workerCache, inProgressCache, aro.WorkerPort)
+		log.Info("Starting GRPC receiver for node-alert-responder")
+		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
+		wg.Done()
+	}()
+
+	//Results ConfigMap Updater
+	go func() {
+		log.Info("Starting results configmap updater for node-alert-responder")
+		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, resultsCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
 		wg.Done()
 	}()
+	
+	log.Info("Sleeping 10 seconds for results cache to be populated")
+	time.Sleep(10*time.Second)
 
-	//Updater
+	//AlertWatcher
 	go func() {
-		log.Info("Starting results configmap updater for node-alert-responder")
-		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, resultsCache)
+		log.Info("Starting alerts configmap controller for node-alert-responder")
+		controller.AlertWatcherStart(clientset, aro.AlertsNamespace, aro.AlertConfigMap, plays, alertCh)
+		log.Info("Watcher - Stopping alerts configmap controller for node-alert-responder")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
+		}
+		wg.Done()
+	}()
+
+	//Remediation filter
+	go func() {
+		log.Info("Starting remediation filter for node-alert-responder")
+		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -135,17 +165,10 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(resultsCache, inProgressCache, todoCache, aro.MaxTasks)
+		controller.ScheduleTask(workerCache, resultsCache, inProgressCache, todoCache, aro.MaxTasks, aro.WorkerPort)
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
-		wg.Done()
-	}()
-
-	//Receiver
-	go func() {
-		log.Info("Starting GRPC server for node-alert-responder")
-		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
 		wg.Done()
 	}()
 

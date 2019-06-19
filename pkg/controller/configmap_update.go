@@ -23,27 +23,27 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 	buf := make(map[string]string)
 	frequency, err := time.ParseDuration(resultsUpdateInterval)
 	if err != nil {
-		log.Fatal("Updater - Could not parse interval: ", err)
+		log.Fatal("ConfigMap Updater - Could not parse interval: ", err)
 	}
 	ticker := time.NewTicker(frequency)
 
 	//Create config map client
 	configmapClient := client.CoreV1().ConfigMaps(ns)
-	initConfigMap(configmapClient, configMap)
+	initConfigMap(configmapClient, configMap, resultsCache)
 	for {
 		select {
 		case <-ticker.C:
-			log.Info("Updater - Time to save results cache to configmap: ", configMap)
+			log.Info("ConfigMap Updater - Time to save results cache to configmap: ", configMap)
 			bufCur = resultsCache.GetAll()
 			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
-				log.Info("Updater - No new entries found")
+				log.Info("ConfigMap Updater - No new entries found")
 			} else {
 				//Convert ActionResult type to string
 				for cond, result := range bufCur {
 					rstr, err := json.Marshal(result)
 					if err != nil {
-						log.Errorf("Updater - unable to marshal %+v: %e", result, err)
+						log.Errorf("ConfigMap Updater - unable to marshal %+v: %e", result, err)
 					} else {
 						buf[cond] = string(rstr)
 					}
@@ -56,19 +56,19 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 					},
 					Data: buf,
 				}
-				log.Info("Updater - Updating configmap with ", len(buf), " entries")
+				log.Info("ConfigMap Updater - Updating configmap with ", len(buf), " entries")
 				for count := 0; count < 3; count++ {
 					result, err := configmapClient.Update(cm)
 					if err != nil {
 						if count < 3 {
-							log.Infof("Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
+							log.Infof("ConfigMap Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
 							time.Sleep(100 * time.Millisecond)
 							continue
 						} else {
-							log.Errorf("Updater - Could not update configmap after 3 attempts: %s", err)
+							log.Errorf("ConfigMap Updater - Could not update configmap after 3 attempts: %s", err)
 						}
 					} else {
-						log.Debug("Updater - Updated configmap ", result)
+						log.Debug("ConfigMap Updater - Updated configmap ", result)
 						break
 					}
 				}
@@ -80,10 +80,11 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 	}
 }
 
-func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
-	_, err1 := configmapClient.Get(name, metav1.GetOptions{})
+//Check if config map exists if not create new one
+func initConfigMap(configmapClient corev1.ConfigMapInterface, name string, resultsCache *cache.ResultsCache) {
+	nroCM, err1 := configmapClient.Get(name, metav1.GetOptions{})
 	if err1 != nil {
-		log.Infof("Updater - %s configmap not found, creating new one", name)
+		log.Infof("ConfigMap Updater - %s configmap not found:%v, creating new one", name, err1)
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -93,18 +94,29 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 			result, err2 := configmapClient.Create(cm)
 			if err2 != nil {
 				if count < 3 {
-					log.Infof("Updater - Could not create configmap tried %d times, retrying after 1000ms: %s", count, err2)
+					log.Infof("ConfigMap Updater - Could not create configmap tried %d times, retrying after 1000ms: %v", count, err2)
 					time.Sleep(100 * time.Millisecond)
 					continue
 				} else {
-					log.Errorf("Updater - Could not create configmap after 3 attempts: %s", err2)
+					log.Errorf("ConfigMap Updater - Could not create configmap after 3 attempts: %v", err2)
 				}
 			} else {
-				log.Debug("Updater - Created configmap ", result)
-				break
+				log.Debug("ConfigMap Updater - Created configmap ", result)
+				return
 			}
 		}
 	} else {
-		log.Infof("Updater - %s configmap already exists", name)
+		log.Infof("ConfigMap Updater - Found existing configmap:%s , updating results cache", name)
+		for cond, result := range nroCM.Data {
+			var actionResult types.ActionResult
+			err := json.Unmarshal([]byte(result), &actionResult )
+			if err != nil {
+				log.Errorf("ConfigMap Updater - Could not unmarshall into JSON:%v", err)
+				return
+			}
+			//Populate results cache
+			resultsCache.Set(cond, actionResult)
+		}
+
 	}
 }
