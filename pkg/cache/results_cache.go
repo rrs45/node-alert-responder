@@ -12,7 +12,7 @@ import (
 
 //ResultsCache is a struct to store results of remediation
 type ResultsCache struct {
-	Items               map[string]types.ActionResult
+	Items               map[string]types.ActionResult //{"node_condition": types.ActionResult{}}
 	CacheExpireInterval time.Duration
 	Locker              *sync.RWMutex
 }
@@ -49,35 +49,36 @@ func (cache *ResultsCache) PurgeExpired() {
 
 //Set creates an entry in the map if it doesnt exist
 // or overwrites the timestamp and retry count if it exists
-func (cache *ResultsCache) Set(cond string, t time.Time , worker string, success bool) {
+func (cache *ResultsCache) Set(cond string, result types.ActionResult) {
 	cache.Locker.Lock()
 	var retryCount int
 	if prevResult, found := cache.Items[cond]; found {
 		log.Infof("Results Cache - %s found in cache", cond)
-		if success {
-			log.Infof("Results Cache - Current action was successful for %s", cond)
+		if result.Success {
+			log.Infof("Results Cache - Current action was successful for %s, resetting retry count", cond)
 			retryCount = 0
 		} else {
-				log.Infof("Results Cache - Current action failed for %s", cond)
+				log.Infof("Results Cache - Current action failed for %s, incrementing retry count", cond)
 				retryCount = prevResult.Retry + 1
 			}
 	} else {
 		log.Infof("Results Cache - %s not found in cache", cond)
-		if success {
-			log.Infof("Results Cache - Current action was successful for %s", cond)
+		if result.Success {
+			log.Infof("Results Cache - Current action was successful for %s, resetting retry count", cond)
 			retryCount = 0
 		} else {
-			log.Infof("Results Cache - Current action failed for %s", cond)
+			log.Infof("Results Cache - Current action failed for %s, incrementing retry count", cond)
 			retryCount = 1
 		}
 		
 	}
 
 	cache.Items[cond] = types.ActionResult{
-		Timestamp: t,
-		Worker: worker,
-		Success: success,
+		Timestamp: result.Timestamp,
+		ActionName: result.ActionName,
+		Success: result.Success,
 		Retry: retryCount,
+		Worker: result.Worker,
 	}
 	cache.Locker.Unlock()
 }

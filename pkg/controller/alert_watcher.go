@@ -32,7 +32,7 @@ func (c *AlertResponderController) Run(stopCh chan struct{}) error {
 	c.informerFactory.Start(stopCh)
 	// wait for the initial synchronization of the local cache.
 	if !cache.WaitForCacheSync(stopCh, c.configMapInformer.Informer().HasSynced) {
-		return fmt.Errorf("Failed to sync informer cache")
+		return fmt.Errorf("Configmap Watcher - Failed to sync informer cache")
 	}
 	return nil
 }
@@ -56,13 +56,13 @@ func playFilter(cm map[string]string, plays map[string]types.ActionMap) []types.
 
 func (c *AlertResponderController) configMapAdd(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
+	log.Infof("ConfigMap Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
 	actions := playFilter(configMap.Data, c.plays)
 	if len(actions) > 0 {
-		log.Infof("Watcher - Found %d issues to be fixed", len(actions))
+		log.Infof("ConfigMap Watcher - Found %d issues to be fixed", len(actions))
 		c.alertch <- actions
 	} else {
-		log.Infof("Watcher - Found no matching issues to be fixed")
+		log.Infof("ConfigMap Watcher - Found no matching issues to be fixed")
 	}
 	
 }
@@ -71,16 +71,16 @@ func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 	newconfigMap := newCM.(*v1.ConfigMap)
 	actions := playFilter(newconfigMap.Data, c.plays)
 	if len(actions) > 0 {
-		log.Infof("Watcher - Found %d issues to be fixed", len(actions))
+		log.Infof("ConfigMap Watcher - Found %d issues to be fixed", len(actions))
 		c.alertch <- actions
 	} else {
-		log.Infof("Watcher - Found matching issues to be fixed")
+		log.Infof("ConfigMap Watcher - Found matching issues to be fixed")
 	}
 }
 
 func (c *AlertResponderController) configMapDelete(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("Watcher - Received configMap delete event for %s in watcher.go", configMap.Name)
+	log.Infof("ConfigMap Watcher - Received configMap delete event for %s in watcher.go", configMap.Name)
 }
 
 //NewAlertResponderController creates a initializes AlertResponderController struct
@@ -108,13 +108,13 @@ func NewAlertResponderController(informerFactory informers.SharedInformerFactory
 	return c
 }
 
-//Start starts the controller
-func Start(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, plays map[string]types.ActionMap, alertch chan<- []types.AlertMap) {
+//AlertWatcherStart starts the controller
+func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, plays map[string]types.ActionMap, alertch chan<- []types.AlertMap) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
-	log.Info("Watcher - Creating informer factory for node-alert-responder to watch in ", AlertsNamespace, " AlertsNamespace.")
+	log.Info("ConfigMap Watcher - Creating informer factory for node-alert-responder to watch in ", AlertsNamespace, " AlertsNamespace.")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, AlertsNamespace,
 		func(opt *metav1.ListOptions) {
@@ -125,7 +125,7 @@ func Start(clientset *kubernetes.Clientset, AlertsNamespace string, configMap st
 	defer close(stop)
 	err := controller.Run(stop)
 	if err != nil {
-		log.Error("Watcher - Could not run controller :", err)
+		log.Error("ConfigMap Watcher - Could not run controller :", err)
 	}
 	select {}
 }

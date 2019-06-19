@@ -59,3 +59,11 @@ type Todo struct {
 	Params string	
 
 }
+
+
+//Worker struct defines a discovered worker
+type Worker struct {
+	IP string //{podName: podIP}
+	TaskCount int
+}
+
