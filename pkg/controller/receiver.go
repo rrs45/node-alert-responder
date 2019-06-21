@@ -83,21 +83,26 @@ func GetWorkerStatus(workerCache *cache.WorkerCache, progressCache *cache.InProg
 		emp := empty.Empty{}
 		conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podAttr.IP, workerPort), grpc.WithInsecure())
 		if err !=nil {
-			log.Infof("Receiver - Could not get status from:%s because:%v", podName, err)
+			log.Errorf("Receiver - Could not get status from:%s because:%v", podName, err)
 			continue
 		}
 		client := workerpb.NewTaskStatusServiceClient(conn)
 		result, err := client.GetTaskStatus(context.Background(), &emp)
 		if err != nil {
-			log.Infof("Receiver - Could not call getstatus call to worker:%s", podName)
+			log.Errorf("Receiver - Could not call getstatus call to worker:%s :%v", podName, err)
 			continue
 		}
-		for cond, status := range result.Items {
-			log.Infof("Receiver - Seeting %s in inProgress cache", cond)
-			progressCache.Set(cond, types.InProgress{
-					Timestamp: time.Now(),
-					ActionName: status.Action,
-					Worker: status.Worker, })
+		if len(result.Items) == 0 {
+			log.Infof("Receiver - No running tasks on worker:%s", podName)
+		} else {
+			for cond, status := range result.Items {
+				log.Infof("Receiver - Received running tasks on worker:%s", podName)
+				log.Infof("Receiver - Seeting %s in inProgress cache", cond)
+				progressCache.Set(cond, types.InProgress{
+						Timestamp: time.Now(),
+						ActionName: status.Action,
+						Worker: status.Worker, })
+			}
 		}
 	}
 }

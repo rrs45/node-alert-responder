@@ -65,5 +65,6 @@ type Todo struct {
 type Worker struct {
 	IP string //{podName: podIP}
 	TaskCount int
+	Node string
 }
 

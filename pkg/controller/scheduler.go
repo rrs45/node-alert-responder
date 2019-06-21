@@ -34,7 +34,7 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 			limit <- struct{}{}	
 			
 			go func() {
-				conn, podName := getClient(workerCache,maxTasks,workerPort)
+				conn, podName := getClient(workerCache,maxTasks,workerPort, task.Node)
 				defer conn.Close()
 				client := workerpb.NewTaskServiceClient(conn)
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
@@ -79,13 +79,18 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 	}	
 }	
 
-func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string) (*grpc.ClientConn, string) {	
-	var podName, podIP string
+func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string) (*grpc.ClientConn, string) {	
+	var podName, podIP, podNode string
 	for {
-		podName, podIP = workerCache.GetNext(maxTasks)
-		if podName == "" || podIP == "" {
+		podName, podIP, podNode = workerCache.GetNext(maxTasks)
+		if podName == "" || podIP == "" || podNode == ""{
 			n := rand.Intn(10)
 			log.Infof("Scheduler - No workers available, sleeping for %d seconds", n)
+			time.Sleep(time.Duration(n)*time.Second)
+			continue
+		} else if node == podNode {
+			log.Infof("Scheduler - Worker is on same node, searching for different one")
+			n := rand.Intn(10)
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else {

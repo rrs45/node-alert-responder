@@ -8,7 +8,7 @@ import (
 
 //WorkerCache is a struct to store Worker of remediation
 type WorkerCache struct {
-	Items               map[string]types.Worker	//{podName: {IP, Taskcount}}			
+	Items               map[string]types.Worker	//{podName: {IP, Taskcount, Node}}			
 	Locker              *sync.RWMutex
 }
 
@@ -21,12 +21,13 @@ func NewWorkerCache() *WorkerCache {
 }
 
 //SetNew appends entry to the map
-func (cache *WorkerCache) SetNew(worker string, ip string) {
+func (cache *WorkerCache) SetNew(worker string, ip string, node string) {
     log.Infof("Worker Cache - Setting new worker:%s with IP:%s in cache", worker, ip)
 	cache.Locker.Lock()
 	cache.Items[worker] = types.Worker{
 						IP: ip,
 						TaskCount: 0,
+						Node: node,
 						}
 	cache.Locker.Unlock()
 }
@@ -53,15 +54,15 @@ func (cache *WorkerCache) Decrement(worker string) {
 
 
 //GetNext return an IP of one of the available workers
-func (cache *WorkerCache) GetNext(maxTasks int) (string, string) {
+func (cache *WorkerCache) GetNext(maxTasks int) (string, string, string) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	for key, val := range cache.Items {
 		if val.TaskCount <= maxTasks {
-			return key, val.IP
+			return key, val.IP, val.Node
 		}
 	}
-	return "",""
+	return "","",""
 }
 
 //GetAll returns current entries of a cache
