@@ -115,7 +115,7 @@ func main() {
 		}
 		wg.Done()
 	}()
-	log.Info("Sleeping 10 seconds for workers to be discovered")
+	log.Info("Waiting 10 seconds for workers to be discovered")
 	time.Sleep(10*time.Second)
 
 	//Receiver
@@ -125,6 +125,9 @@ func main() {
 		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
 		wg.Done()
 	}()
+
+	log.Info("Waiting 10 seconds to gather running tasks from all workers")
+	time.Sleep(10*time.Second)
 
 	//Results ConfigMap Updater
 	go func() {
@@ -137,7 +140,7 @@ func main() {
 		wg.Done()
 	}()
 	
-	log.Info("Sleeping 10 seconds for results cache to be populated")
+	log.Info("Waiting 10 seconds for results cache to be populated")
 	time.Sleep(10*time.Second)
 
 	//AlertWatcher

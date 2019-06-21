@@ -39,7 +39,7 @@ func (c *AlertWorkerController) Run(stopCh chan struct{}) error {
 func (c *AlertWorkerController) podAdd(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	log.Infof("Worker Watcher - Received pod add event for %s ", pod.Name)
-	c.workerCache.SetNew(pod.Name, pod.Status.PodIP)
+	c.workerCache.SetNew(pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
 	
 }
 
