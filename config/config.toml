@@ -1,0 +1,31 @@
+[general]
+LogFile = "/var/log/service/node-alert-responder.log"
+InitialWaitTime = "2s"
+
+[server]
+ServerAddress = "0.0.0.0"
+ServerPort    = "8090"
+
+[receiver]
+ReceiverAddress = "0.0.0.0"
+ReceiverPort = "50040"
+
+[worker]
+WorkerPort = "9191"
+WorkerNamespace = "node-alert-worker"
+MaxTasks = 2
+
+[kube]
+APIServerHost = ""
+
+[alerts]
+AlertsNamespace  = "node-problem-detector"
+AlertConfigMap   = "npd-alerts"
+
+[results]
+ResultsNamespace = "node-problem-detector"
+ResultsConfigMap = "nro-results"
+ResultsUpdateInterval = "30s"
+
+[cache]
+CacheExpireInterval = "48h"

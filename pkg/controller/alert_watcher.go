@@ -2,8 +2,8 @@ package controller
 
 import (
 	"fmt"
-	"strings"
 	"time"
+	"encoding/json"
 
 	log "github.com/sirupsen/logrus"
 
@@ -21,8 +21,7 @@ import (
 type AlertResponderController struct {
 	informerFactory   informers.SharedInformerFactory
 	configMapInformer coreInformers.ConfigMapInformer
-	plays             map[string]types.ActionMap
-	alertch           chan<- []types.AlertMap
+	alertch           chan<- types.AlertMap
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -37,44 +36,33 @@ func (c *AlertResponderController) Run(stopCh chan struct{}) error {
 	return nil
 }
 
-func playFilter(cm map[string]string, plays map[string]types.ActionMap) []types.AlertMap {
-	var actions []types.AlertMap
-	for item, param := range cm {
-		alert := strings.Split(item, "_")
-		if play, ok := plays[alert[1]]; ok {
-			actions = append(actions, types.AlertMap{
-				Node:   alert[0],
-				Condition:  alert[1],
-				Params: param,
-				Action: play.Action,
-				SuccessWait: play.SuccessWait,
-				FailedRetry: play.FailedRetry, })
-		}
-	}
-	return actions
-}
-
 func (c *AlertResponderController) configMapAdd(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
 	log.Infof("ConfigMap Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
-	actions := playFilter(configMap.Data, c.plays)
-	if len(actions) > 0 {
-		log.Infof("ConfigMap Watcher - Found %d issues to be fixed", len(actions))
-		c.alertch <- actions
-	} else {
-		log.Infof("ConfigMap Watcher - Found no matching issues to be fixed")
+	for nodeCond, attr := range configMap.Data {
+		var alertMap types.AlertMap
+		err := json.Unmarshal([]byte(attr), &alertMap.Attr )
+		if err != nil {
+			log.Errorf("Alert Watcher - Could not unmarshall into JSON:%v", err)
+		}
+		log.Debugf("Alert Watcher - %+v", alertMap.Attr)
+		alertMap.NodeCondition = nodeCond
+		c.alertch <- alertMap
 	}
-	
 }
 
 func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 	newconfigMap := newCM.(*v1.ConfigMap)
-	actions := playFilter(newconfigMap.Data, c.plays)
-	if len(actions) > 0 {
-		log.Infof("ConfigMap Watcher - Found %d issues to be fixed", len(actions))
-		c.alertch <- actions
-	} else {
-		log.Infof("ConfigMap Watcher - Found matching issues to be fixed")
+	log.Infof("ConfigMap Watcher - Received configMap update event for %s in watcher.go ", newconfigMap.Name)
+	for nodeCond, attr := range newconfigMap.Data {
+		var alertMap types.AlertMap
+		err := json.Unmarshal([]byte(attr), &alertMap.Attr )
+		if err != nil {
+			log.Errorf("Alert Watcher - Could not unmarshall into JSON:%v", err)
+		}
+		log.Infof("Alert Watcher - %+v", alertMap.Attr)
+		alertMap.NodeCondition = nodeCond
+		c.alertch <- alertMap
 	}
 }
 
@@ -85,13 +73,12 @@ func (c *AlertResponderController) configMapDelete(obj interface{}) {
 
 //NewAlertResponderController creates a initializes AlertResponderController struct
 //and adds event handler functions
-func NewAlertResponderController(informerFactory informers.SharedInformerFactory, plays map[string]types.ActionMap, alertch chan<- []types.AlertMap) *AlertResponderController {
+func NewAlertResponderController(informerFactory informers.SharedInformerFactory, alertch chan<- types.AlertMap) *AlertResponderController {
 	configMapInf := informerFactory.Core().V1().ConfigMaps()
 
 	c := &AlertResponderController{
 		informerFactory:   informerFactory,
 		configMapInformer: configMapInf,
-		plays:             plays,
 		alertch:           alertch,
 	}
 	configMapInf.Informer().AddEventHandler(
@@ -109,7 +96,7 @@ func NewAlertResponderController(informerFactory informers.SharedInformerFactory
 }
 
 //AlertWatcherStart starts the controller
-func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, plays map[string]types.ActionMap, alertch chan<- []types.AlertMap) {
+func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, alertch chan<- types.AlertMap) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -120,7 +107,7 @@ func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, 
 		func(opt *metav1.ListOptions) {
 			opt.FieldSelector = fmt.Sprintf("metadata.name=%s", configMap)
 		})
-	controller := NewAlertResponderController(factory, plays, alertch)
+	controller := NewAlertResponderController(factory, alertch)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)

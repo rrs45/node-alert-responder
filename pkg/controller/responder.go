@@ -2,6 +2,7 @@ package controller
 
 import (
 	"time"
+	"strconv"
 
 	"github.com/box-node-alert-responder/pkg/types"
 	"github.com/box-node-alert-responder/pkg/cache"
@@ -10,26 +11,25 @@ import (
 )
 
 //Remediate kicks off remediation
-func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan []types.AlertMap, todo *cache.TodoCache ) {
+func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan types.AlertMap, todo *cache.TodoCache ) {
 	for {
 		select {
-			case r := <-alertCh:
-				//log.Infof("%+v",r)
-				for _, item := range r {
-					//log.Infof("%+v",item)
-					condition := item.Node + "_" + item.Condition
-					run := scheduleFilter(condition, resultsCache, progressCache, item.SuccessWait, item.FailedRetry)
-					if run {	
-						log.Infof("Responder - Setting %s condition in Todo cache", condition)
-						log.Infof("Responder - progress cache count: %v", progressCache.Count())
-						todo.Set(condition, types.Todo{
-							Timestamp: time.Now(),
-							Action: item.Action,
-							Params: item.Params,
+			case item := <-alertCh:
+				log.Debugf("%+v",item)
+				retry, err := strconv.Atoi(item.Attr.FailedRetry)
+				if err != nil {
+					log.Errorf("Responder - Unable convert FailedRetry to int: %v", err)
+				}
+				run := scheduleFilter(item.NodeCondition, resultsCache, progressCache, item.Attr.SuccessWait, retry)
+				if run {	
+					log.Infof("Responder - Setting %s condition in Todo cache", item.NodeCondition)
+					log.Infof("Responder - progress cache count: %v", progressCache.Count())
+					todo.Set(item.NodeCondition, types.Todo{
+						Timestamp: time.Now(),
+						Action: item.Attr.Action,
+						Params: item.Attr.Params,
 						})
-
-					}
-			    }
+				}
 		} 
 	}
 }

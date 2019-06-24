@@ -26,14 +26,20 @@ type AlertAction struct {
 	Params string
 }
 
-//AlertMap is a struct combining alert and the respective play parameters
-type AlertMap struct {
-	Node   string
-	Condition string // Condition name
-	Action string
-	Params string
+//Action defines format for alerts detected from NPD
+type Action struct {
+	Timestamp time.Time
+	Action    string
+	Params    string
 	SuccessWait string
-	FailedRetry int
+	FailedRetry string
+}
+
+//AlertMap is a struct mapping the respective node_condition to action attributes
+// 
+type AlertMap struct {
+	NodeCondition   string
+	Attr Action
 }
 
 //ActionResult is a struct to represent result of a remediation
@@ -59,7 +65,6 @@ type Todo struct {
 	Params string	
 
 }
-
 
 //Worker struct defines a discovered worker
 type Worker struct {

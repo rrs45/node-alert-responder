@@ -63,76 +63,70 @@ func startHTTPServer(addr string, port string) *http.Server {
 }
 
 func main() {
+	//Parse command line options
+	conf := options.GetConfig()
+	conf.AddFlags(flag.CommandLine)
+	flag.Parse()
+	naro, err := options.NewConfigFromFile(conf.File)
+	if err!= nil {
+		log.Fatalf("Cannot parse config file: %v", err)
+	}
+	options.ValidOrDie(naro)
+	logFile, _ := os.OpenFile(naro.GetString("general.LogFile"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+
+	defer logFile.Close()
+	
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
-
-	//Parse command line options
-	aro := options.NewAlertResponderOptions()
-	aro.AddFlags(flag.CommandLine)
-	flag.Parse()
-	aro.ValidOrDie()
-	/*f, _ := os.OpenFile(aro.LogFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	defer f.Close()
-	log.SetOutput(f) */
-	plays := map[string]types.ActionMap{
-		"NPD-PuppetRunDelayed": types.ActionMap{
-		 Action: "test1.yml",
-		SuccessWait: "1m",
-		FailedRetry: 2,	},
-		"NPD-ChronyIssue": types.ActionMap{
-			Action: "test1.yml",
-		   SuccessWait: "1m",
-		   FailedRetry: 2,	} }
 	
-	log.Info(plays)
-	srv := startHTTPServer(aro.ServerAddress, aro.ServerPort)
+	srv := startHTTPServer(naro.GetString("server.ServerAddress"), naro.GetString("server.ServerPort"))
 
 	var wg sync.WaitGroup
 	wg.Add(7)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
-	clientset, err := initClient(aro.APIServerHost)
+	clientset, err := initClient(naro.GetString("kube.APIServerHost"))
 	if err != nil {
 		panic(err)
 	}
 	log.Info("Successfully generated k8 client for node-alert-responder")
-	alertCh := make(chan []types.AlertMap)
-	resultsCache := cache.NewResultsCache(aro.CacheExpireInterval)
-	inProgressCache := cache.NewInProgressCache(aro.CacheExpireInterval)
-	todoCache := cache.NewTodoCache(aro.CacheExpireInterval)
+	alertCh := make(chan types.AlertMap)
+	resultsCache := cache.NewResultsCache(naro.GetString("cache.CacheExpireInterval"))
+	inProgressCache := cache.NewInProgressCache(naro.GetString("cache.CacheExpireInterval"))
+	todoCache := cache.NewTodoCache(naro.GetString("cache.CacheExpireInterval"))
 	workerCache := cache.NewWorkerCache()
 	receiver := controller.NewReceiver(resultsCache, inProgressCache, workerCache)
 	
 	//WorkerWatcherStart
 	go func() {
 		log.Info("Starting worker watcher controller for node-alert-responder")
-		controller.WorkerWatcherStart(clientset, aro.WorkerNamespace, workerCache)
+		controller.WorkerWatcherStart(clientset, naro.GetString("worker.WorkerNamespace"), workerCache)
 		log.Info("Watcher - Stopping worker watcher controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
 		wg.Done()
 	}()
-	log.Info("Waiting 10 seconds for workers to be discovered")
-	time.Sleep(10*time.Second)
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
+	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
 
 	//Receiver
 	go func() {
-		controller.GetWorkerStatus(workerCache, inProgressCache, aro.WorkerPort)
+		controller.GetWorkerStatus(workerCache, inProgressCache, naro.GetString("worker.WorkerPort"))
 		log.Info("Starting GRPC receiver for node-alert-responder")
-		controller.StartGRPCServer(aro.ReceiverAddress, aro.ReceiverPort, receiver)
+		controller.StartGRPCServer(naro.GetString("receiver.ReceiverAddress"), naro.GetString("receiver.ReceiverPort"), receiver)
 		wg.Done()
 	}()
 
-	log.Info("Waiting 10 seconds to gather running tasks from all workers")
-	time.Sleep(10*time.Second)
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
+	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
 
 	//Results ConfigMap Updater
 	go func() {
 		log.Info("Starting results configmap updater for node-alert-responder")
-		controller.Update(clientset, aro.ResultsNamespace, aro.ResultsConfigMap, aro.ResultsUpdateInterval, resultsCache)
+		controller.Update(clientset, naro.GetString("results.ResultsNamespace"), naro.GetString("results.ResultsConfigMap"), naro.GetString("results.ResultsUpdateInterval"), resultsCache)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -140,13 +134,13 @@ func main() {
 		wg.Done()
 	}()
 	
-	log.Info("Waiting 10 seconds for results cache to be populated")
-	time.Sleep(10*time.Second)
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
+	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
 
 	//AlertWatcher
 	go func() {
 		log.Info("Starting alerts configmap controller for node-alert-responder")
-		controller.AlertWatcherStart(clientset, aro.AlertsNamespace, aro.AlertConfigMap, plays, alertCh)
+		controller.AlertWatcherStart(clientset, naro.GetString("alerts.AlertsNamespace"), naro.GetString("alerts.AlertConfigMap"), alertCh)
 		log.Info("Watcher - Stopping alerts configmap controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -168,7 +162,7 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(workerCache, resultsCache, inProgressCache, todoCache, aro.MaxTasks, aro.WorkerPort)
+		controller.ScheduleTask(workerCache, resultsCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

@@ -70,7 +70,7 @@ func StartGRPCServer(addr string, port string, rcv *Receiver){
 	s := grpc.NewServer()
 	workerpb.RegisterTaskReceiveServiceServer(s, rcv)
 	
-	log.Info("Starting Task service ")
+	log.Info("Starting Task Receiver service ")
 	if err := s.Serve(srv); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
