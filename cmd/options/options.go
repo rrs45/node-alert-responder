@@ -2,72 +2,56 @@ package options
 
 import (
 	"flag"
-	log "github.com/sirupsen/logrus"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"	
 )
 
-//AlertResponderOptions defines options for node-alert-responder
-type AlertResponderOptions struct {
-	ServerAddress string
-	ServerPort    string
-	ReceiverAddress string
-	ReceiverPort string
-	WorkerPort string
-	APIServerHost string
-	LogFile       string
-
-	AlertsNamespace  string
-	ResultsNamespace string
-	WorkerNamespace string
-
-	AlertConfigMap   string
-	ResultsConfigMap string
-
-	ResultsUpdateInterval string
-	CacheExpireInterval   string
-
-	MaxTasks int
+//NewConfigFromFile parses config file  
+func NewConfigFromFile(configFile string) (*viper.Viper, error) {
+	//dir, file := filepath.Split(configFile)
+	v := viper.New()
+	v.SetConfigType("toml")
+	v.SetConfigFile(configFile)
+	//v.AddConfigPath(dir)
+	v.AutomaticEnv()
+	err := v.ReadInConfig()
+	return v, err
 }
 
-//NewAlertResponderOptions returns a flagset
-func NewAlertResponderOptions() *AlertResponderOptions {
-	return &AlertResponderOptions{}
+//Config defines configuration parameters
+type Config struct {
+	File string
 }
 
-//AddFlags adds options to the flagset
-func (aro *AlertResponderOptions) AddFlags(fs *flag.FlagSet) {
-	fs.StringVar(&aro.ServerAddress, "address", "0.0.0.0", "Address to bind the alert generator server.")
-	fs.StringVar(&aro.ServerPort, "port", "8090", "Port to bind the alert generator server for /healthz endpoint")
-	fs.StringVar(&aro.ReceiverAddress, "receiver-address", "0.0.0.0", "Address to bind the alert generator server.")
-	fs.StringVar(&aro.ReceiverPort, "receiver-port", "50040", "Port to bind the alert generator server for /healthz endpoint")
-	fs.StringVar(&aro.WorkerPort, "worker-port", "9191", "Port where worker will be listening on")
-	fs.StringVar(&aro.APIServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
-	fs.StringVar(&aro.LogFile, "log-file", "/var/log/service/node-alert-responder.log", "Log file to store all logs")
+//GetConfig returna new config file
+func GetConfig() *Config {
+	return &Config{}
+}
 
-	fs.StringVar(&aro.AlertsNamespace, "alert-namespace", "node-alert-generator", "Namespace where alerts config map will be watched from")
-	fs.StringVar(&aro.ResultsNamespace, "result-namespace", "node-alert-responder", "Namespace where results config map will be created")
-	fs.StringVar(&aro.WorkerNamespace, "worker-namespace", "node-alert-worker", "Namespace to discover & watch for worker pods")
-
-	fs.StringVar(&aro.AlertConfigMap, "alerts-config-map", "npd-alerts", "Name of config map to store alerts")
-	fs.StringVar(&aro.ResultsConfigMap, "results-config-map", "nro-results", "Name of config map to store results from remediation")
-
-	fs.StringVar(&aro.ResultsUpdateInterval, "results-update-interval", "30s", "Time period after which cache entries will expire")
-	fs.StringVar(&aro.CacheExpireInterval, "cache-expire-interval", "48h", "Time period after which cache entries will expire")
-
-	fs.IntVar(&aro.MaxTasks, "max-tasks", 2, "Maximum number of concurrent remediation tasks at any time")
-
+//AddFlags takes config file input
+func (c *Config) AddFlags(fs *flag.FlagSet) {
+	fs.StringVar(&c.File, "file", "/home/rajsingh/go/src/github.com/box-node-alert-responder/config/config.toml",
+		"Configuration file path")
 }
 
 //ValidOrDie checks some of the options are valid
-func (aro *AlertResponderOptions) ValidOrDie() {
-	_, err := time.ParseDuration(aro.CacheExpireInterval)
+func ValidOrDie(aro *viper.Viper) {
+	_, err := time.ParseDuration(aro.GetString("cache.CacheExpireInterval"))
 	if err != nil {
-		log.Error("Options - Incorrect cache-expire-interval, sample format: 10s or 1m or 1h; ", err)
+		log.Error("Options - Incorrect cache.CacheExpireInterval, sample format: 10s or 1m or 1h; ", err)
 		log.Panic("Incorrect options")
 	}
-	_, err1 := time.ParseDuration(aro.ResultsUpdateInterval)
+	_, err1 := time.ParseDuration(aro.GetString("results.ResultsUpdateInterval"))
 	if err1 != nil {
-		log.Error("Options - Incorrect results-update-interval, sample format: 10s or 1m or 1h; ", err1)
+		log.Error("Options - Incorrect results.ResultsUpdateInterval, sample format: 10s or 1m or 1h; ", err1)
+		log.Panic("Incorrect options")
+	}
+
+	_, err2 := time.ParseDuration(aro.GetString("general.InitialWaitTime"))
+	if err2 != nil {
+		log.Error("Options - Incorrect general.InitialWaitTime, sample format: 10s or 1m or 1h; ", err1)
 		log.Panic("Incorrect options")
 	}
 
