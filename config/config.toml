@@ -8,7 +8,7 @@ ServerPort    = "8090"
 
 [receiver]
 ReceiverAddress = "0.0.0.0"
-ReceiverPort = "50040"
+ReceiverPort = "9090"
 
 [worker]
 WorkerPort = "9191"
@@ -19,11 +19,11 @@ MaxTasks = 2
 APIServerHost = ""
 
 [alerts]
-AlertsNamespace  = "node-problem-detector"
+AlertsNamespace  = "node-alert-generator" #node-problem-detector
 AlertConfigMap   = "npd-alerts"
 
 [results]
-ResultsNamespace = "node-problem-detector"
+ResultsNamespace = "node-alert-responder"
 ResultsConfigMap = "nro-results"
 ResultsUpdateInterval = "30s"
 

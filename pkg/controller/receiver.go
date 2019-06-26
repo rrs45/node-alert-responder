@@ -5,6 +5,7 @@ import (
 	"net"
 	"context"
 	"time"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -42,7 +43,7 @@ func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult
 	epoch := result.Timestamp.GetSeconds()
 	t := time.Unix(epoch,0).In(location)
 	log.Infof("Receiver - Deleting %s in inprogress cache", cond)
-	r.ProgressCache.DelItem(cond)
+	r.ProgressCache.DelItem(result.Node, result.Condition)
 	log.Infof("Receiver - Setting %s in results cache", cond)
 	//Set dummy Retry as it will be overwritten while saving in cache
 	r.ResultsCache.Set(cond, types.ActionResult{
@@ -96,9 +97,10 @@ func GetWorkerStatus(workerCache *cache.WorkerCache, progressCache *cache.InProg
 			log.Infof("Receiver - No running tasks on worker:%s", podName)
 		} else {
 			for cond, status := range result.Items {
+				alert := strings.Split(cond, "_")
 				log.Infof("Receiver - Received running tasks on worker:%s", podName)
 				log.Infof("Receiver - Seeting %s in inProgress cache", cond)
-				progressCache.Set(cond, types.InProgress{
+				progressCache.Set(alert[0], alert[1], types.InProgress{
 						Timestamp: time.Now(),
 						ActionName: status.Action,
 						Worker: status.Worker, })

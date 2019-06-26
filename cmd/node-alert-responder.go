@@ -40,6 +40,7 @@ func initClient(apiserver string) (*kubernetes.Clientset, error) {
 	}
 	if apiserver != "" {
 		kubeConfig.Host = apiserver
+		return kubernetes.NewForConfig(kubeConfig)
 	}
 	return kubernetes.NewForConfig(kubeConfig)
 	

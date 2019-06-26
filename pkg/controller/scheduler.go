@@ -28,11 +28,11 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 			task, _ := todoCache.GetItem()
 			if task.Node == "" || task.Condition == "" || task.Action == "" || task.Params == "" {
 				log.Infof("Scheduler - Not enough value to process: %+v", task)
-				continue
+				log.Fatal()
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
 			limit <- struct{}{}	
-			
+			log.Infof("Scheduler - Starting routing to Work on node: %s and condition: %s",task.Node, task.Condition)
 			go func() {
 				conn, podName := getClient(workerCache,maxTasks,workerPort, task.Node)
 				defer conn.Close()
@@ -47,9 +47,8 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 					ActionName: task.Action,
 					Worker: podName,
 				}
-				cond := task.Node+"_"+task.Condition
-				log.Infof("Scheduler routine - Setting %s in inprogress cache", cond)
-				progressCache.Set(cond, inProgressItem)
+				log.Infof("Scheduler - Setting node:%s and condition:%s in inprogress cache", task.Node, task.Condition)
+				progressCache.Set(task.Node, task.Condition, inProgressItem)
 
 				req := &workerpb.TaskRequest{
 					Node: task.Node,
@@ -61,8 +60,8 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
 					log.Errorf("Scheduler routine - Unable to send request to worker: %v",err)
-					log.Infof("Scheduler routine - Deleting %s in inprogress cache", cond)
-					progressCache.DelItem(cond)
+					log.Infof("Scheduler routine - Deleting node:%s and condition:%s in inprogress cache", task.Node, task.Condition)
+					progressCache.DelItem(task.Node, task.Condition)
 					return
 				}
 				log.Infof("Scheduler routine - Successfully sent task: %v to worker",res)
@@ -72,7 +71,7 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 				log.Infof("Scheduler routine - deleting %s from todo cache",task.Node+"_"+task.Condition)
 				todoCache.DelItem()
 			} else {
-				log.Info("Scheduler routine - No tasks in Todo cache waiting 10 seconds")
+				log.Info("Scheduler - No tasks in Todo cache waiting 10 seconds")
 				time.Sleep(time.Duration(10) * time.Second)
 				continue
 			}
@@ -85,22 +84,22 @@ func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string, 
 		podName, podIP, podNode = workerCache.GetNext(maxTasks)
 		if podName == "" || podIP == "" || podNode == ""{
 			n := rand.Intn(10)
-			log.Infof("Scheduler - No workers available, sleeping for %d seconds", n)
+			log.Infof("Scheduler routine - No workers available, sleeping for %d seconds", n)
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else if node == podNode {
-			log.Infof("Scheduler - Worker is on same node, searching for different one")
+			log.Infof("Scheduler routine - Worker is on same node, searching for different one")
 			n := rand.Intn(10)
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else {
 			//Update worker cache
 			workerCache.Increment(podName)
-			log.Infof("Scheduler - Found availble worker:%s with IP:%s", podName, podIP)
+			log.Infof("Scheduler routine - Found availble worker:%s with IP:%s", podName, podIP)
 			conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podIP, workerPort), grpc.WithInsecure())
 			if err != nil {
-				log.Errorf("Scheduler - Unable to connect to worker: %v",err)
-				log.Infof("Scheduler - Trying another worker")
+				log.Errorf("Scheduler routine - Unable to connect to worker: %v",err)
+				log.Infof("Scheduler routine - Trying another worker")
 				////Update worker cache
 				workerCache.Decrement(podName)
 				continue
