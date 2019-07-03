@@ -81,15 +81,10 @@ func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCac
 func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string) (*grpc.ClientConn, string) {	
 	var podName, podIP, podNode string
 	for {
-		podName, podIP, podNode = workerCache.GetNext(maxTasks)
+		podName, podIP, podNode = workerCache.GetNext(maxTasks, node)
 		if podName == "" || podIP == "" || podNode == ""{
 			n := rand.Intn(10)
 			log.Infof("Scheduler routine - No workers available, sleeping for %d seconds", n)
-			time.Sleep(time.Duration(n)*time.Second)
-			continue
-		} else if node == podNode {
-			log.Infof("Scheduler routine - Worker is on same node, searching for different one")
-			n := rand.Intn(10)
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else {

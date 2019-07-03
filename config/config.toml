@@ -3,6 +3,7 @@ LogFile = "/var/log/service/node-alert-responder.log"
 InitialWaitTime = "2s"
 
 [server]
+#Healthz and profiling endpoint
 ServerAddress = "0.0.0.0"
 ServerPort    = "8090"
 
