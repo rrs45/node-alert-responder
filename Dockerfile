@@ -6,4 +6,5 @@ LABEL com.box.name="node-alert-responder"
 ENV container=docker
 
 ADD ./build/node-alert-responder /node-alert-responder
-RUN chown container:container /node-alert-responder
+ADD ./config /config
+RUN chown -R container:container /config  && chown container:container /node-alert-responder

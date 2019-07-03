@@ -21,6 +21,7 @@ type AlertWorkerController struct {
 	informerFactory   informers.SharedInformerFactory
 	podInformer coreInformers.PodInformer
 	workerCache *cache.WorkerCache
+	progressCache *cache.InProgressCache
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -52,18 +53,27 @@ func (c *AlertWorkerController) podUpdate(oldPd, newPd interface{}) {
 func (c *AlertWorkerController) podDelete(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	log.Infof("Worker Watcher - Received pod delete event for %s ", pod.Name)
-    c.workerCache.DelItem(pod.Name)	
+	c.workerCache.DelItem(pod.Name)	
+	for node, conditions := range c.progressCache.GetAll() {
+		for cond, params := range conditions {
+			if params.Worker == pod.Name {
+				log.Infof("Worker Watcher - Deleting %s, %s from InProgress cache", node, cond)
+				c.progressCache.DelItem(node, cond)
+			}
+		}
+	}
 }
 
 //NewAlertWorkerController creates a initializes AlertWorkerController struct
 //and adds event handler functions
-func NewAlertWorkerController(informerFactory informers.SharedInformerFactory, workerCache *cache.WorkerCache) *AlertWorkerController {
+func NewAlertWorkerController(informerFactory informers.SharedInformerFactory, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache) *AlertWorkerController {
 	podInf := informerFactory.Core().V1().Pods()
 
 	c := &AlertWorkerController{
 		informerFactory:   informerFactory,
 		podInformer: podInf,
 		workerCache: workerCache,
+		progressCache: progressCache,
 	}
 	podInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -80,7 +90,7 @@ func NewAlertWorkerController(informerFactory informers.SharedInformerFactory, w
 }
 
 //WorkerWatcherStart starts the controller
-func WorkerWatcherStart(clientset *kubernetes.Clientset, workerNamespace string, workerCache *cache.WorkerCache) {
+func WorkerWatcherStart(clientset *kubernetes.Clientset, workerNamespace string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -88,7 +98,7 @@ func WorkerWatcherStart(clientset *kubernetes.Clientset, workerNamespace string,
 	log.Info("Worker Watcher - Creating informer factory for node-alert-responder to watch in ", workerNamespace, " WorkerNamespace.")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, workerNamespace,	func(opt *metav1.ListOptions) {} )
-	controller := NewAlertWorkerController(factory, workerCache)
+	controller := NewAlertWorkerController(factory, workerCache, progressCache)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)

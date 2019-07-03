@@ -54,11 +54,11 @@ func (cache *WorkerCache) Decrement(worker string) {
 
 
 //GetNext return an IP of one of the available workers
-func (cache *WorkerCache) GetNext(maxTasks int) (string, string, string) {
+func (cache *WorkerCache) GetNext(maxTasks int, node string) (string, string, string) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	for key, val := range cache.Items {
-		if val.TaskCount <= maxTasks {
+		if val.TaskCount <= maxTasks && val.Node != node{
 			return key, val.IP, val.Node
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"time"
 	"flag"
 	"net/http"
-	_ "net/http/pprof"
+	//"net/http/pprof"
 	"os"
 	"path/filepath"
 	"sync"
@@ -53,6 +53,11 @@ func startHTTPServer(addr string, port string) *http.Server {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+	//mux.HandleFunc("/debug/pprof/", pprof.Index)
+    //mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+    //mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+    //mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+    //mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	go func() {
 		log.Info("Starting HTTP server for alert-responder")
@@ -103,7 +108,7 @@ func main() {
 	//WorkerWatcherStart
 	go func() {
 		log.Info("Starting worker watcher controller for node-alert-responder")
-		controller.WorkerWatcherStart(clientset, naro.GetString("worker.WorkerNamespace"), workerCache)
+		controller.WorkerWatcherStart(clientset, naro.GetString("worker.WorkerNamespace"), workerCache, inProgressCache)
 		log.Info("Watcher - Stopping worker watcher controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)

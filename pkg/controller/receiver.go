@@ -63,7 +63,7 @@ func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult
 
 //StartGRPCServer starts the GRPC service
 func StartGRPCServer(addr string, port string, rcv *Receiver){
-	srv, err := net.Listen("tcp", "0.0.0.0:50040")
+	srv, err := net.Listen("tcp", fmt.Sprintf("%s:%s",addr, port))
 	if err != nil {
 		log.Fatalf("Failed to start listener: %v", err)
 	}
