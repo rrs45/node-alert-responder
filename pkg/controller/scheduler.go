@@ -13,7 +13,7 @@ import (
 )
 
 //ScheduleTask schedules a given task to worker
-func ScheduleTask(workerCache *cache.WorkerCache, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string) {
+func ScheduleTask(workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string) {
 	location, err := time.LoadLocation(types.LocalTZ)
     if err != nil {
 		log.Fatalf("Scheduler - Unable to load time zone: %v", err)

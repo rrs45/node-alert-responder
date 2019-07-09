@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"fmt"
 	"net"
 	"context"
@@ -9,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"github.com/golang/protobuf/ptypes/empty"
 	
 	"github.com/box-node-alert-responder/pkg/cache"
@@ -62,13 +66,40 @@ func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult
 
 
 //StartGRPCServer starts the GRPC service
-func StartGRPCServer(addr string, port string, rcv *Receiver){
+func StartGRPCServer(addr string, port string, certFile string, keyFile string, caCertFile string, rcv *Receiver){
+	// Load the certificates from disk
+	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		log.Fatalf("GRPC Server - Could not load certificates: %v", err)
+	}
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile(caCertFile)
+	if err != nil {
+		log.Fatalf("GRPC Server - Could read CA certificates: %v", err)
+	}
+
+	// Append the client certificates from the CA
+	if ok := certPool.AppendCertsFromPEM(ca); !ok {
+		log.Fatalf("GRPC Server - Could not append CA certs to pool: %v", err)
+	}
+
 	srv, err := net.Listen("tcp", fmt.Sprintf("%s:%s",addr, port))
 	if err != nil {
 		log.Fatalf("Failed to start listener: %v", err)
 	}
 	
-	s := grpc.NewServer()
+	tlsConfig := tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{certificate},
+		ClientCAs:    certPool,
+	}
+	tlsConfig.BuildNameToCertificate()
+	// Create the TLS configuration to pass to the GRPC server
+	creds := credentials.NewTLS(&tlsConfig)
+
+	s := grpc.NewServer(grpc.Creds(creds))
 	workerpb.RegisterTaskReceiveServiceServer(s, rcv)
 	
 	log.Info("Starting Task Receiver service ")
@@ -78,11 +109,35 @@ func StartGRPCServer(addr string, port string, rcv *Receiver){
 }
 
 //GetWorkerStatus gets status from all workers
-func GetWorkerStatus(workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, workerPort string) {
-	//time.Sleep(10 * time.Second)
+func GetWorkerStatus(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, workerPort string) {
+	// Load the certificates from disk
+certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
+if err != nil {
+	log.Fatalf("Publisher - Could not load certificates: %v", err)
+}
+
+// Create a certificate pool from the certificate authority
+certPool := x509.NewCertPool()
+ca, err := ioutil.ReadFile(caCertFile)
+if err != nil {
+	log.Fatalf("Publisher - Could read CA certificates: %v", err)
+}
+
+// Append the client certificates from the CA
+if ok := certPool.AppendCertsFromPEM(ca); !ok {
+	log.Fatalf("Publisher - Could not append CA certs to pool: %v", err)
+}
+
+// Create the TLS credentials for transport
+creds := credentials.NewTLS(&tls.Config{
+	ServerName: "skynet-node-alert-worker.dsv31.boxdc.net",
+	Certificates: []tls.Certificate{certificate},
+	RootCAs:      certPool,
+})
+	
 	for podName, podAttr := range workerCache.GetAll() {
 		emp := empty.Empty{}
-		conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podAttr.IP, workerPort), grpc.WithInsecure())
+		conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podAttr.IP, workerPort), grpc.WithTransportCredentials(creds))
 		if err !=nil {
 			log.Errorf("Receiver - Could not get status from:%s because:%v", podName, err)
 			continue
