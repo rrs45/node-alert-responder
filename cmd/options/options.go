@@ -23,6 +23,7 @@ func NewConfigFromFile(configFile string) (*viper.Viper, error) {
 //Config defines configuration parameters
 type Config struct {
 	File string
+	KubeAPIURL string
 }
 
 //GetConfig returna new config file
@@ -34,10 +35,12 @@ func GetConfig() *Config {
 func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.File, "file", "/home/rajsingh/go/src/github.com/box-node-alert-responder/config/config.toml",
 		"Configuration file path")
+		fs.StringVar(&c.KubeAPIURL, "apiserver-override", "", "URL of the kubernetes api server")	
 }
 
 //ValidOrDie checks some of the options are valid
 func ValidOrDie(aro *viper.Viper) {
+	log.Infof("Options - %v",aro.AllSettings())
 	_, err := time.ParseDuration(aro.GetString("cache.CacheExpireInterval"))
 	if err != nil {
 		log.Error("Options - Incorrect cache.CacheExpireInterval, sample format: 10s or 1m or 1h; ", err)
@@ -49,7 +52,7 @@ func ValidOrDie(aro *viper.Viper) {
 		log.Panic("Incorrect options")
 	}
 
-	_, err2 := time.ParseDuration(aro.GetString("general.InitialWaitTime"))
+	_, err2 := time.ParseDuration(aro.GetString("general.initial_wait_time"))
 	if err2 != nil {
 		log.Error("Options - Incorrect general.InitialWaitTime, sample format: 10s or 1m or 1h; ", err1)
 		log.Panic("Incorrect options")

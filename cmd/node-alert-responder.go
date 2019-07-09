@@ -78,7 +78,7 @@ func main() {
 		log.Fatalf("Cannot parse config file: %v", err)
 	}
 	options.ValidOrDie(naro)
-	logFile, _ := os.OpenFile(naro.GetString("general.LogFile"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	logFile, _ := os.OpenFile(naro.GetString("general.lo_file"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
 	defer logFile.Close()
 	
@@ -93,7 +93,7 @@ func main() {
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-responder")
-	clientset, err := initClient(naro.GetString("kube.APIServerHost"))
+	clientset, err := initClient(conf.KubeAPIURL)
 	if err != nil {
 		panic(err)
 	}
@@ -115,19 +115,19 @@ func main() {
 		}
 		wg.Done()
 	}()
-	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
-	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.initial_wait_time"))
+	time.Sleep(naro.GetDuration("general.initial_wait_time"))
 
 	//Receiver
 	go func() {
-		controller.GetWorkerStatus(workerCache, inProgressCache, naro.GetString("worker.WorkerPort"))
+		controller.GetWorkerStatus(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, naro.GetString("worker.WorkerPort"))
 		log.Info("Starting GRPC receiver for node-alert-responder")
-		controller.StartGRPCServer(naro.GetString("receiver.ReceiverAddress"), naro.GetString("receiver.ReceiverPort"), receiver)
+		controller.StartGRPCServer(naro.GetString("receiver.ReceiverAddress"), naro.GetString("receiver.ReceiverPort"), naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), receiver)
 		wg.Done()
 	}()
 
-	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
-	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.initial_wait_time"))
+	time.Sleep(naro.GetDuration("general.initial_wait_time"))
 
 	//Results ConfigMap Updater
 	go func() {
@@ -140,8 +140,8 @@ func main() {
 		wg.Done()
 	}()
 	
-	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.InitialWaitTime"))
-	time.Sleep(naro.GetDuration("general.InitialWaitTime"))
+	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.initial_wait_time"))
+	time.Sleep(naro.GetDuration("general.initial_wait_time"))
 
 	//AlertWatcher
 	go func() {
@@ -168,7 +168,7 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(workerCache, resultsCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
+		controller.ScheduleTask(workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}
