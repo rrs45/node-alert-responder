@@ -4,9 +4,9 @@ log_file = "/tmp/node-alert-responder.log"
 initial_wait_time = "2s"
 
 [certs]
-cert_file = "/box/et/pki/node-alert-responder.crt"
-key_file = "/box/et/pki/node-alert-responder.key"
-ca_cert_file = "/box/et/pki/node-alert-responder.pem"
+cert_file = "/box/etc/pki/node-alert-responder.crt"
+key_file = "/box/etc/pki/node-alert-responder.key"
+ca_cert_file = "/box/etc/pki/node-alert-responder.pem"
 
 [server]
 #Healthz and profiling endpoint
