@@ -4,14 +4,14 @@ log_file = "/tmp/node-alert-responder.log"
 initial_wait_time = "2s"
 
 [certs]
-cert_file = "node-alert-responder.crt"
-key_file = "node-alert-responder.key"
-ca_cert_file = "node-alert-responder.pem"
+cert_file = "/box/et/pki/node-alert-responder.crt"
+key_file = "/box/et/pki/node-alert-responder.key"
+ca_cert_file = "/box/et/pki/node-alert-responder.pem"
 
 [server]
 #Healthz and profiling endpoint
 ServerAddress = "0.0.0.0"
-ServerPort    = "8090"
+ServerPort    = "8080"
 
 [receiver]
 ReceiverAddress = "0.0.0.0"
