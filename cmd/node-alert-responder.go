@@ -5,6 +5,7 @@ import (
 	"time"
 	"flag"
 	"net/http"
+	"io"
 	//"net/http/pprof"
 	"os"
 	"path/filepath"
@@ -78,13 +79,15 @@ func main() {
 		log.Fatalf("Cannot parse config file: %v", err)
 	}
 	options.ValidOrDie(naro)
-	logFile, _ := os.OpenFile(naro.GetString("general.lo_file"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	logFile, _ := os.OpenFile(naro.GetString("general.log_file"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
 	defer logFile.Close()
 	
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
+	mw := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(mw)
 	
 	srv := startHTTPServer(naro.GetString("server.ServerAddress"), naro.GetString("server.ServerPort"))
 
