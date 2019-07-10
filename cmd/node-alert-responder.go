@@ -168,7 +168,7 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
+		controller.ScheduleTask(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

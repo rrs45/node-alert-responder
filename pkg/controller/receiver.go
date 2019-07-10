@@ -87,7 +87,7 @@ func StartGRPCServer(addr string, port string, certFile string, keyFile string, 
 
 	srv, err := net.Listen("tcp", fmt.Sprintf("%s:%s",addr, port))
 	if err != nil {
-		log.Fatalf("Failed to start listener: %v", err)
+		log.Fatalf("GRPC Server - Failed to start listener: %v", err)
 	}
 	
 	tlsConfig := tls.Config{
@@ -113,19 +113,19 @@ func GetWorkerStatus(certFile string, keyFile string, caCertFile string, workerC
 	// Load the certificates from disk
 certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 if err != nil {
-	log.Fatalf("Publisher - Could not load certificates: %v", err)
+	log.Fatalf("Receiver - Could not load certificates: %v", err)
 }
 
 // Create a certificate pool from the certificate authority
 certPool := x509.NewCertPool()
 ca, err := ioutil.ReadFile(caCertFile)
 if err != nil {
-	log.Fatalf("Publisher - Could read CA certificates: %v", err)
+	log.Fatalf("Receiver - Could read CA certificates: %v", err)
 }
 
 // Append the client certificates from the CA
 if ok := certPool.AppendCertsFromPEM(ca); !ok {
-	log.Fatalf("Publisher - Could not append CA certs to pool: %v", err)
+	log.Fatalf("Receiver - Could not append CA certs to pool: %v", err)
 }
 
 // Create the TLS credentials for transport
@@ -142,6 +142,7 @@ creds := credentials.NewTLS(&tls.Config{
 			log.Errorf("Receiver - Could not get status from:%s because:%v", podName, err)
 			continue
 		}
+		log.Debugf("Receiver - connection state: %+v, target: %+v",conn.GetState(), conn.Target())
 		client := workerpb.NewTaskStatusServiceClient(conn)
 		result, err := client.GetTaskStatus(context.Background(), &emp)
 		if err != nil {
