@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"fmt"
 	"context"
 	"math/rand"
@@ -10,10 +13,11 @@ import (
 	"github.com/box-node-alert-responder/pkg/cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 //ScheduleTask schedules a given task to worker
-func ScheduleTask(workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string) {
+func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string) {
 	location, err := time.LoadLocation(types.LocalTZ)
     if err != nil {
 		log.Fatalf("Scheduler - Unable to load time zone: %v", err)
@@ -26,7 +30,7 @@ func ScheduleTask(workerCache *cache.WorkerCache, progressCache *cache.InProgres
 		if todoCache.TodoList.Len() > 0 {
 			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
 			task, _ := todoCache.GetItem()
-			if task.Node == "" || task.Condition == "" || task.Action == "" || task.Params == "" {
+			if task.Node == "" || task.Condition == "" || task.Action == "" {
 				log.Infof("Scheduler - Not enough value to process: %+v", task)
 				log.Fatal()
 			}
@@ -34,7 +38,7 @@ func ScheduleTask(workerCache *cache.WorkerCache, progressCache *cache.InProgres
 			limit <- struct{}{}	
 			log.Infof("Scheduler - Starting routing to Work on node: %s and condition: %s",task.Node, task.Condition)
 			go func() {
-				conn, podName := getClient(workerCache,maxTasks,workerPort, task.Node)
+				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node)
 				defer conn.Close()
 				client := workerpb.NewTaskServiceClient(conn)
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
@@ -78,7 +82,31 @@ func ScheduleTask(workerCache *cache.WorkerCache, progressCache *cache.InProgres
 	}	
 }	
 
-func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string) (*grpc.ClientConn, string) {	
+func getClient(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string) (*grpc.ClientConn, string) {	
+// Load the certificates from disk
+certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
+if err != nil {
+	log.Fatalf("Receiver - Could not load certificates: %v", err)
+}
+
+// Create a certificate pool from the certificate authority
+certPool := x509.NewCertPool()
+ca, err := ioutil.ReadFile(caCertFile)
+if err != nil {
+	log.Fatalf("Receiver - Could read CA certificates: %v", err)
+}
+
+// Append the client certificates from the CA
+if ok := certPool.AppendCertsFromPEM(ca); !ok {
+	log.Fatalf("Receiver - Could not append CA certs to pool: %v", err)
+}
+
+// Create the TLS credentials for transport
+creds := credentials.NewTLS(&tls.Config{
+	ServerName: "skynet-node-alert-worker.dsv31.boxdc.net",
+	Certificates: []tls.Certificate{certificate},
+	RootCAs:      certPool,
+})
 	var podName, podIP, podNode string
 	for {
 		podName, podIP, podNode = workerCache.GetNext(maxTasks, node)
@@ -91,7 +119,7 @@ func getClient(workerCache *cache.WorkerCache, maxTasks int, workerPort string, 
 			//Update worker cache
 			workerCache.Increment(podName)
 			log.Infof("Scheduler routine - Found availble worker:%s with IP:%s", podName, podIP)
-			conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podIP, workerPort), grpc.WithInsecure())
+			conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podIP, workerPort), grpc.WithTransportCredentials(creds))
 			if err != nil {
 				log.Errorf("Scheduler routine - Unable to connect to worker: %v",err)
 				log.Infof("Scheduler routine - Trying another worker")
