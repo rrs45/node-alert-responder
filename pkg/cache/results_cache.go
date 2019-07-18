@@ -3,6 +3,7 @@ package cache
 import (
 	"sync"
 	"time"
+	"strings"
 
 	"github.com/box-node-alert-responder/pkg/types"
 
@@ -100,4 +101,15 @@ func (cache *ResultsCache) GetItem(key string) (types.ActionResult, bool) {
 		return val, true
 	}
 	return types.ActionResult{}, false
+}
+
+//GetNodeCount returns count of all unique nodes
+func (cache *ResultsCache) GetNodeCount() int {
+	nodes := make(map[string]struct{})
+	cache.Locker.RLock()
+	defer cache.Locker.RUnlock()
+	for key := range cache.Items {
+		nodes[strings.Split(key, "_")[0]] = struct{}{}
+	}
+	return len(nodes)
 }

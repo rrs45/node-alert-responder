@@ -24,6 +24,7 @@ func NewConfigFromFile(configFile string) (*viper.Viper, error) {
 type Config struct {
 	File string
 	KubeAPIURL string
+	MaxDrained int
 }
 
 //GetConfig returna new config file
@@ -35,7 +36,8 @@ func GetConfig() *Config {
 func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.File, "file", "/home/rajsingh/go/src/github.com/box-node-alert-responder/config/config.toml",
 		"Configuration file path")
-		fs.StringVar(&c.KubeAPIURL, "apiserver-override", "", "URL of the kubernetes api server")	
+		fs.StringVar(&c.KubeAPIURL, "apiserver-override", "", "URL of the kubernetes api server")
+		fs.IntVar(&c.MaxDrained, "max-drained-nodes", 200, "Remediation will pause if cluster has these many drained nodes")
 }
 
 //ValidOrDie checks some of the options are valid

@@ -12,7 +12,7 @@ import (
 )
 
 //Remediate kicks off remediation
-func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan types.AlertMap, todo *cache.TodoCache ) {
+func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, alertCh <-chan types.AlertMap, todo *cache.TodoCache, maxDrained int ) {
 	for {
 		select {
 			case item := <-alertCh:
@@ -21,7 +21,7 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 				if err != nil {
 					log.Errorf("Responder - Unable convert FailedRetry to int: %v", err)
 				}
-				run := scheduleFilter(item.NodeCondition, resultsCache, progressCache, item.Attr.SuccessWait, retry, item.Attr.Action )
+				run := scheduleFilter(item.NodeCondition, resultsCache, progressCache, item.Attr.SuccessWait, retry, item.Attr.Action, maxDrained )
 				if run {	
 					log.Infof("Responder - Setting %s condition in Todo cache", item.NodeCondition)
 					log.Infof("Responder - progress cache count: %v", progressCache.Count())
@@ -35,7 +35,11 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 	}
 }
 
-func scheduleFilter(condition string, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, successWaitInterval string, maxRetry int, action string) bool {
+func scheduleFilter(condition string, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, successWaitInterval string, maxRetry int, action string, maxDrained int) bool {
+	if resultsCache.GetNodeCount() > maxDrained {
+		log.Infof("Responder - Maximum number of drained nodes (%d) reached, ignoring %s", maxDrained, condition)
+		return false
+	}
 	waitDur, _ := time.ParseDuration(successWaitInterval)
 	//Is any worker working on the given node & condition
 	alert := strings.Split(condition, "_")
