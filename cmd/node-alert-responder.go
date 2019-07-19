@@ -5,6 +5,7 @@ import (
 	"time"
 	"flag"
 	"net/http"
+	"strconv"
 	"io"
 	//"net/http/pprof"
 	"os"
@@ -160,7 +161,8 @@ func main() {
 	//Remediation filter
 	go func() {
 		log.Info("Starting remediation filter for node-alert-responder")
-		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache, conf.MaxDrained)
+		maxDrainedInt, _ := strconv.Atoi(conf.MaxDrained)
+		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache, maxDrainedInt)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)

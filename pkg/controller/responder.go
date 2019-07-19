@@ -36,7 +36,7 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 }
 
 func scheduleFilter(condition string, resultsCache *cache.ResultsCache, progressCache *cache.InProgressCache, successWaitInterval string, maxRetry int, action string, maxDrained int) bool {
-	if resultsCache.GetNodeCount() > maxDrained {
+	if resultsCache.GetFailedNodeCount() > maxDrained {
 		log.Infof("Responder - Maximum number of drained nodes (%d) reached, ignoring %s", maxDrained, condition)
 		return false
 	}

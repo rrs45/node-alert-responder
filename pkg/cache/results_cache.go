@@ -103,8 +103,8 @@ func (cache *ResultsCache) GetItem(key string) (types.ActionResult, bool) {
 	return types.ActionResult{}, false
 }
 
-//GetNodeCount returns count of all unique nodes
-func (cache *ResultsCache) GetNodeCount() int {
+//GetFailedNodeCount returns count of all unique nodes
+func (cache *ResultsCache) GetFailedNodeCount() int {
 	nodes := make(map[string]struct{})
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
