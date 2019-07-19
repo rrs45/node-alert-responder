@@ -23,7 +23,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 	buf := make(map[string]string)
 	frequency, err := time.ParseDuration(resultsUpdateInterval)
 	if err != nil {
-		log.Fatal("ConfigMap Updater - Could not parse interval: ", err)
+		log.Errorf("ConfigMap Updater - Could not parse interval: %v", err)
 	}
 	ticker := time.NewTicker(frequency)
 

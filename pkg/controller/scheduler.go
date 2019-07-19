@@ -31,8 +31,8 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
 			task, _ := todoCache.GetItem()
 			if task.Node == "" || task.Condition == "" || task.Action == "" {
-				log.Infof("Scheduler - Not enough value to process: %+v", task)
-				log.Fatal()
+				log.Errorf("Scheduler - Not enough value to process: %+v", task)
+				continue
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
 			limit <- struct{}{}	
