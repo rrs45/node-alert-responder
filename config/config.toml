@@ -1,7 +1,7 @@
 [general]
 log_file = "/var/log/service/node-alert-responder.log"
-debug = false
-initial_wait_time = "2s"
+debug = true
+initial_wait_time = "10s"
 
 [certs]
 cert_file = "/box/etc/pki/node-alert-responder.crt"
