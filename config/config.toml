@@ -1,6 +1,5 @@
 [general]
-#log_file = "/var/log/service/node-alert-responder.log"
-log_file = "/tmp/node-alert-responder.log"
+log_file = "/var/log/service/node-alert-responder.log"
 initial_wait_time = "2s"
 
 [certs]
