@@ -108,8 +108,10 @@ func (cache *ResultsCache) GetNodeCount() int {
 	nodes := make(map[string]struct{})
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
-	for key := range cache.Items {
-		nodes[strings.Split(key, "_")[0]] = struct{}{}
+	for key, val := range cache.Items {
+		if !val.Success {
+			nodes[strings.Split(key, "_")[0]] = struct{}{}
+		}
 	}
 	return len(nodes)
 }
