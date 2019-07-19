@@ -33,11 +33,11 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 	for {
 		select {
 		case <-ticker.C:
-			log.Info("ConfigMap Updater - Time to save results cache to configmap: ", configMap)
+			log.Debug("ConfigMap Updater - Time to save results cache to configmap: ", configMap)
 			bufCur = resultsCache.GetAll()
 			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
-				log.Info("ConfigMap Updater - No new entries found")
+				log.Debug("ConfigMap Updater - No new entries found")
 			} else {
 				//Convert ActionResult type to string
 				for cond, result := range bufCur {
@@ -61,7 +61,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 					result, err := configmapClient.Update(cm)
 					if err != nil {
 						if count < 3 {
-							log.Infof("ConfigMap Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
+							log.Debugf("ConfigMap Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
 							time.Sleep(100 * time.Millisecond)
 							continue
 						} else {

@@ -36,7 +36,7 @@ func NewTodoCache(cacheExpireInterval string) *TodoCache {
 // or overwrites the timestamp and retry count if it exists
 func (cache *TodoCache) Set(cond string, todo types.Todo) {
 	cache.Locker.Lock()
-    log.Infof("Todo Cache - Setting %s in todo cache", cond)
+    log.Debugf("Todo Cache - Setting %s in todo cache", cond)
 	cache.Items[cond] = todo
 	cache.TodoList.PushBack(cond)
 	cache.Locker.Unlock()
@@ -72,7 +72,7 @@ func (cache *TodoCache) GetItem() (types.AlertAction, bool) {
 func (cache *TodoCache) DelItem()  {
 	cache.Locker.Lock()
 	cond := cache.TodoList.Front()
-	log.Infof("Todo Cache - Deleting %s in todo cache", cond.Value.(string))
+	log.Debugf("Todo Cache - Deleting %s in todo cache", cond.Value.(string))
 	cache.TodoList.Remove(cond)
 	delete(cache.Items, cond.Value.(string))
 	cache.Locker.Unlock()

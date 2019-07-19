@@ -1,5 +1,6 @@
 [general]
 log_file = "/var/log/service/node-alert-responder.log"
+debug = false
 initial_wait_time = "2s"
 
 [certs]

@@ -23,8 +23,8 @@ func Remediate(client *kubernetes.Clientset, resultsCache *cache.ResultsCache, p
 				}
 				run := scheduleFilter(item.NodeCondition, resultsCache, progressCache, item.Attr.SuccessWait, retry, item.Attr.Action, maxDrained )
 				if run {	
-					log.Infof("Responder - Setting %s condition in Todo cache", item.NodeCondition)
-					log.Infof("Responder - progress cache count: %v", progressCache.Count())
+					log.Debugf("Responder - Setting %s condition in Todo cache", item.NodeCondition)
+					log.Debugf("Responder - progress cache count: %v", progressCache.Count())
 					todo.Set(item.NodeCondition, types.Todo{
 						Timestamp: time.Now(),
 						Action: item.Attr.Action,
