@@ -32,6 +32,7 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 			task, _ := todoCache.GetItem()
 			if task.Node == "" || task.Condition == "" || task.Action == "" {
 				log.Errorf("Scheduler - Not enough value to process: %+v", task)
+				todoCache.DelItem()
 				continue
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
