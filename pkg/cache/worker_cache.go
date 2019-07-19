@@ -22,7 +22,7 @@ func NewWorkerCache() *WorkerCache {
 
 //SetNew appends entry to the map
 func (cache *WorkerCache) SetNew(worker string, ip string, node string) {
-    log.Infof("Worker Cache - Setting new worker:%s with IP:%s in cache", worker, ip)
+    log.Debugf("Worker Cache - Setting new worker:%s with IP:%s in cache", worker, ip)
 	cache.Locker.Lock()
 	cache.Items[worker] = types.Worker{
 						IP: ip,
@@ -34,7 +34,7 @@ func (cache *WorkerCache) SetNew(worker string, ip string, node string) {
 
 //Increment appends entry to the map
 func (cache *WorkerCache) Increment(worker string) {
-    log.Infof("Worker Cache - Incrementing task count for worker: %s ", worker)
+    log.Debugf("Worker Cache - Incrementing task count for worker: %s ", worker)
 	cache.Locker.Lock()
 	v := cache.Items[worker]
 	v.TaskCount++
@@ -44,7 +44,7 @@ func (cache *WorkerCache) Increment(worker string) {
 
 //Decrement appends entry to the map
 func (cache *WorkerCache) Decrement(worker string) {
-    log.Infof("Worker Cache - Decrementing task count for worker: %s ", worker)
+    log.Debugf("Worker Cache - Decrementing task count for worker: %s ", worker)
 	cache.Locker.Lock()
 	v := cache.Items[worker]
 	v.TaskCount--
@@ -92,7 +92,7 @@ func (cache *WorkerCache) GetItem(key string) (types.Worker, bool) {
 
 //DelItem deletes a cache item with a given key
 func (cache *WorkerCache) DelItem(key string)  {
-	log.Infof("Worker Cache - Deleting %s from cache", key)
+	log.Debugf("Worker Cache - Deleting %s from cache", key)
 	cache.Locker.Lock()
 	delete(cache.Items,key)
 	cache.Locker.Unlock()

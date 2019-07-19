@@ -31,12 +31,12 @@ func (cache *InProgressCache) PurgeExpired() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Info("CacheManager - Attempting to delete expired entries")
+			log.Debug("CacheManager - Attempting to delete expired entries")
 			cache.Locker.Lock()
 			for node, condItem := range cache.Items {
 				for cond, params := range condItem {
 					if time.Since(params.Timestamp) > cache.CacheExpireInterval {
-						log.Info("CacheManager - Deleting expired entry for ", cond)
+						log.Debug("CacheManager - Deleting expired entry for ", cond)
 						delete(cache.Items[node], cond)
 					}
 				}
@@ -60,7 +60,7 @@ func (cache *InProgressCache) Set(node string, condition string, action types.In
 		cache.Items[node] = cond
 	}
 	cache.Items[node][condition] = action
-	log.Infof("Progress cache - Setting %+v", cache.Items)
+	log.Debugf("Progress cache - Setting %+v", cache.Items)
 }
 
 //GetAll returns current entries of a cache
@@ -109,7 +109,7 @@ func (cache *InProgressCache) DelItem(node string, condition string)  {
 	if len(cache.Items[node]) == 0 {
 		delete(cache.Items, node)
 	}
-	log.Infof("Progress cache - deleting %v", cache.Items)
+	log.Debugf("Progress cache - deleting %v", cache.Items)
 	cache.Locker.Unlock()
 }
 

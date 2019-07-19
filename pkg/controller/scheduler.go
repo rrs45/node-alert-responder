@@ -64,19 +64,19 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
 					log.Errorf("Scheduler routine - Unable to send request to worker: %v",err)
-					log.Infof("Scheduler routine - Deleting node:%s and condition:%s in inprogress cache", task.Node, task.Condition)
+					log.Debugf("Scheduler routine - Deleting node:%s and condition:%s in inprogress cache", task.Node, task.Condition)
 					progressCache.DelItem(task.Node, task.Condition)
 					return
 				}
-				log.Infof("Scheduler routine - Successfully sent task: %v to worker",res)
+				log.Debugf("Scheduler routine - Successfully sent task: %v to worker",res)
 				
 				<-limit
 				}()
 				log.Infof("Scheduler routine - deleting %s from todo cache",task.Node+"_"+task.Condition)
 				todoCache.DelItem()
 			} else {
-				log.Info("Scheduler - No tasks in Todo cache waiting 10 seconds")
-				time.Sleep(time.Duration(10) * time.Second)
+				log.Info("Scheduler - No tasks in Todo cache waiting 60 seconds")
+				time.Sleep(time.Duration(60) * time.Second)
 				continue
 			}
 	}	

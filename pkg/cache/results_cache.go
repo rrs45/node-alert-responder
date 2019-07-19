@@ -34,11 +34,11 @@ func (cache *ResultsCache) PurgeExpired() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Info("CacheManager - Attempting to delete expired entries")
+			log.Debug("CacheManager - Attempting to delete expired entries")
 			cache.Locker.Lock()
 			for cond, result := range cache.Items {
 				if time.Since(result.Timestamp) > cache.CacheExpireInterval {
-					log.Info("CacheManager - Deleting expired entry for ", cond)
+					log.Debug("CacheManager - Deleting expired entry for ", cond)
 					delete(cache.Items, cond)
 				}
 			}
@@ -54,21 +54,21 @@ func (cache *ResultsCache) Set(cond string, result types.ActionResult) {
 	cache.Locker.Lock()
 	var retryCount int
 	if prevResult, found := cache.Items[cond]; found {
-		log.Infof("Results Cache - %s found in cache", cond)
+		log.Debugf("Results Cache - %s found in cache", cond)
 		if result.Success {
-			log.Infof("Results Cache - Current action was successful for %s, resetting retry count", cond)
+			log.Debugf("Results Cache - Current action was successful for %s, resetting retry count", cond)
 			retryCount = 0
 		} else {
-				log.Infof("Results Cache - Current action failed for %s, incrementing retry count", cond)
+				log.Debugf("Results Cache - Current action failed for %s, incrementing retry count", cond)
 				retryCount = prevResult.Retry + 1
 			}
 	} else {
-		log.Infof("Results Cache - %s not found in cache", cond)
+		log.Debugf("Results Cache - %s not found in cache", cond)
 		if result.Success {
-			log.Infof("Results Cache - Current action was successful for %s, resetting retry count", cond)
+			log.Debugf("Results Cache - Current action was successful for %s, resetting retry count", cond)
 			retryCount = 0
 		} else {
-			log.Infof("Results Cache - Current action failed for %s, incrementing retry count", cond)
+			log.Debugf("Results Cache - Current action failed for %s, incrementing retry count", cond)
 			retryCount = 1
 		}
 		

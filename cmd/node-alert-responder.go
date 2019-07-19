@@ -86,7 +86,11 @@ func main() {
 	
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
-	log.SetLevel(log.InfoLevel)
+	if naro.GetBool("general.debug") {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 	mw := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(mw)
 	
