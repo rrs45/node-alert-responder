@@ -37,7 +37,7 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
 			limit <- struct{}{}
-			routineID := len(limit)
+			routineID := 100 + rand.Intn(999-100)
 			log.Infof("Scheduler Routine%d - deleting %s from todo cache", routineID, task.Node+"_"+task.Condition)
 			todoCache.DelItem()
 			
@@ -125,9 +125,10 @@ creds := credentials.NewTLS(&tls.Config{
 			log.Infof("Scheduler Routine%d - Found availble worker:%s with IP:%s", routineID, podName, podIP)
 			conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podIP, workerPort), grpc.WithTransportCredentials(creds))
 			if err != nil {
-				log.Errorf("Scheduler Routine%d - Unable to connect to worker: %v", routineID, err)
-				log.Infof("Scheduler Routine%d - Trying another worker", routineID)
-				////Update worker cache
+				n := rand.Intn(10)
+				log.Errorf("Scheduler Routine%d - Unable to connect to worker: %v , sleep %d seconds", routineID, err, n)
+				time.Sleep(time.Duration(n)*time.Second)
+				//Update worker cache
 				workerCache.Decrement(podName)
 				continue
 			} else {

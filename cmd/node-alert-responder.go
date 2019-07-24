@@ -134,7 +134,7 @@ func main() {
 		wg.Done()
 	}()
 
-	log.Infof("Waiting %s for workers to be discovered", naro.GetString("general.initial_wait_time"))
+	log.Infof("Waiting %s for workers to get worker status", naro.GetString("general.initial_wait_time"))
 	time.Sleep(naro.GetDuration("general.initial_wait_time"))
 
 	//Results ConfigMap Updater
