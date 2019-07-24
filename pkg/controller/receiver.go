@@ -154,7 +154,7 @@ creds := credentials.NewTLS(&tls.Config{
 		} else {
 			for cond, status := range result.Items {
 				alert := strings.Split(cond, "_")
-				log.Infof("Receiver - Received running tasks on worker:%s", podName)
+				log.Infof("Receiver - %s is currently working on %s", podName, cond)
 				log.Debugf("Receiver - Seeting %s in inProgress cache", cond)
 				progressCache.Set(alert[0], alert[1], types.InProgress{
 						Timestamp: time.Now(),
