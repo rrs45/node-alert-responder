@@ -25,6 +25,7 @@ type Config struct {
 	File string
 	KubeAPIURL string
 	MaxDrained string
+	ServerName string
 }
 
 //GetConfig returna new config file
@@ -38,6 +39,7 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 		"Configuration file path")
 		fs.StringVar(&c.KubeAPIURL, "apiserver-override", "", "URL of the kubernetes api server")
 		fs.StringVar(&c.MaxDrained, "max-drained-nodes", "200", "Remediation will pause if cluster has these many drained nodes")
+		fs.StringVar(&c.ServerName, "worker-name", "", "Name of the worker for TLS auth")
 }
 
 //ValidOrDie checks some of the options are valid

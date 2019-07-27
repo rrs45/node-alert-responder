@@ -128,7 +128,7 @@ func main() {
 
 	//Receiver
 	go func() {
-		controller.GetWorkerStatus(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, naro.GetString("worker.WorkerPort"))
+		controller.GetWorkerStatus(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, naro.GetString("worker.WorkerPort"), conf.ServerName)
 		log.Info("Starting GRPC receiver for node-alert-responder")
 		controller.StartGRPCServer(naro.GetString("receiver.ReceiverAddress"), naro.GetString("receiver.ReceiverPort"), naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), receiver)
 		wg.Done()
@@ -177,7 +177,7 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"))
+		controller.ScheduleTask(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"), conf.ServerName)
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

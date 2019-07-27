@@ -17,7 +17,7 @@ import (
 )
 
 //ScheduleTask schedules a given task to worker
-func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string) {
+func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string, tlsName string) {
 	location, err := time.LoadLocation(types.LocalTZ)
     if err != nil {
 		log.Fatalf("Scheduler - Unable to load time zone: %v", err)
@@ -43,7 +43,7 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 			
 			log.Infof("Scheduler - Starting Routine%d to Work on node: %s and condition: %s", routineID, task.Node, task.Condition)
 			go func() {
-				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node, routineID)
+				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node, routineID, tlsName)
 				defer conn.Close()
 				client := workerpb.NewTaskServiceClient(conn)
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
@@ -86,7 +86,7 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 	}	
 }	
 
-func getClient(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string, routineID int) (*grpc.ClientConn, string) {	
+func getClient(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string, routineID int, tlsName string) (*grpc.ClientConn, string) {	
 // Load the certificates from disk
 certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 if err != nil {
@@ -107,7 +107,7 @@ if ok := certPool.AppendCertsFromPEM(ca); !ok {
 
 // Create the TLS credentials for transport
 creds := credentials.NewTLS(&tls.Config{
-	ServerName: "skynet-node-alert-worker.dsv31.boxdc.net",
+	ServerName: tlsName,
 	Certificates: []tls.Certificate{certificate},
 	RootCAs:      certPool,
 })
