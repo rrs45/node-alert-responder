@@ -23,6 +23,12 @@ pipeline {
                 )
             }
         }
+        stage('Deploy To VSV1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
         stage('Deploy To DSV31') {
             when { branch 'master'  }
             steps {

@@ -109,7 +109,7 @@ func StartGRPCServer(addr string, port string, certFile string, keyFile string, 
 }
 
 //GetWorkerStatus gets status from all workers
-func GetWorkerStatus(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, workerPort string) {
+func GetWorkerStatus(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, workerPort string, tlsName string) {
 	// Load the certificates from disk
 certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 if err != nil {
@@ -130,7 +130,7 @@ if ok := certPool.AppendCertsFromPEM(ca); !ok {
 
 // Create the TLS credentials for transport
 creds := credentials.NewTLS(&tls.Config{
-	ServerName: "skynet-node-alert-worker.dsv31.boxdc.net",
+	ServerName: tlsName,
 	Certificates: []tls.Certificate{certificate},
 	RootCAs:      certPool,
 })
