@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,7 +17,6 @@ import (
 //Update creates config map if it doesnt exist and
 //updates the config map with alerts received from watcher
 func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUpdateInterval string, resultsCache *cache.ResultsCache) {
-	bufPrev := make(map[string]types.ActionResult)
 	bufCur := make(map[string]types.ActionResult)
 	buf := make(map[string]string)
 	frequency, err := time.ParseDuration(resultsUpdateInterval)
@@ -33,50 +31,45 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug("ConfigMap Updater - Time to save results cache to configmap: ", configMap)
+			log.Info("ConfigMap Updater - Time to save results cache to configmap: ", configMap)
 			bufCur = resultsCache.GetAll()
-			eq := reflect.DeepEqual(bufPrev, bufCur)
-			if eq {
-				log.Debug("ConfigMap Updater - No new entries found")
-			} else {
-				//Convert ActionResult type to string
-				for cond, result := range bufCur {
-					rstr, err := json.Marshal(result)
-					if err != nil {
-						log.Errorf("ConfigMap Updater - unable to marshal %+v: %e", result, err)
-					} else {
-						buf[cond] = string(rstr)
-					}
+			//Convert ActionResult type to string
+			for cond, result := range bufCur {
+				rstr, err := json.Marshal(result)
+				if err != nil {
+					log.Errorf("ConfigMap Updater - unable to marshal %+v: %e", result, err)
+				} else {
+					buf[cond] = string(rstr)
 				}
-
-				//Create config map
-				cm := &v1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: configMap,
-					},
-					Data: buf,
-				}
-				log.Info("ConfigMap Updater - Updating configmap with ", len(buf), " entries")
-				for count := 0; count < 3; count++ {
-					result, err := configmapClient.Update(cm)
-					if err != nil {
-						if count < 3 {
-							log.Debugf("ConfigMap Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
-							time.Sleep(100 * time.Millisecond)
-							continue
-						} else {
-							log.Errorf("ConfigMap Updater - Could not update configmap after 3 attempts: %s", err)
-						}
-					} else {
-						log.Debug("ConfigMap Updater - Updated configmap ", result)
-						break
-					}
-				}
-				buf = make(map[string]string)
-				bufPrev = bufCur
 			}
+
+			//Create config map
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: configMap,
+				},
+				Data: buf,
+			}
+			log.Info("ConfigMap Updater - Updating configmap with ", len(buf), " entries")
+			for count := 0; count < 3; count++ {
+				result, err := configmapClient.Update(cm)
+				if err != nil {
+					if count < 3 {
+						log.Debugf("ConfigMap Updater - Could not update configmap tried %d times, retrying after 1000ms: %s", count, err)
+						time.Sleep(100 * time.Millisecond)
+						continue
+					} else {
+						log.Errorf("ConfigMap Updater - Could not update configmap after 3 attempts: %s", err)
+					}
+				} else {
+					log.Debug("ConfigMap Updater - Updated configmap ", result)
+					break
+				}
+			}
+			buf = make(map[string]string)
 			bufCur = make(map[string]types.ActionResult)
 		}
+		
 	}
 }
 
