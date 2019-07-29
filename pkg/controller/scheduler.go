@@ -23,10 +23,9 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 		log.Fatalf("Scheduler - Unable to load time zone: %v", err)
     }
 	
-	limit := make(chan struct{}, maxTasks)
+	//limit := make(chan struct{}, maxTasks)
 
 	for {	
-		//task, found := todoCache.GetItem()
 		if todoCache.TodoList.Len() > 0 {
 			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
 			task, _ := todoCache.GetItem()
@@ -36,13 +35,13 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 				continue
 			}
 			//log.Infof("Scheduler - todo cache item: %+v", task)
-			limit <- struct{}{}
+			//limit <- struct{}{}
 			routineID := 100 + rand.Intn(999-100)
 			log.Infof("Scheduler Routine%d - deleting %s from todo cache", routineID, task.Node+"_"+task.Condition)
 			todoCache.DelItem()
 			
 			log.Infof("Scheduler - Starting Routine%d to Work on node: %s and condition: %s", routineID, task.Node, task.Condition)
-			go func() {
+			//go func() {
 				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node, routineID, tlsName)
 				defer conn.Close()
 				client := workerpb.NewTaskServiceClient(conn)
@@ -75,8 +74,8 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 				}
 				log.Debugf("Scheduler Routine%d - Successfully sent task: %v to worker", routineID, res)
 				
-				<-limit
-				}()
+				//<-limit
+				//}()
 				
 			} else {
 				log.Infof("Scheduler - No tasks in Todo cache waiting 60 seconds")
