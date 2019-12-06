@@ -9,8 +9,11 @@ export GOPATH=/tmp/go
 
 mv cmd $godir/box-node-alert-responder/
 mv pkg $godir/box-node-alert-responder/
+mv go.mod $godir/box-node-alert-responder/
+
 cd $godir/box-node-alert-responder
 mkdir bin
+export GO111MODULE=on
 go get ./...
 CGO_ENABLED=0 GOOS=linux go build -o bin/node-alert-responder -ldflags '-w' cmd/node-alert-responder.go
 

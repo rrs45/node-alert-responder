@@ -154,7 +154,7 @@ func main() {
 	//AlertWatcher
 	go func() {
 		log.Info("Starting alerts configmap controller for node-alert-responder")
-		controller.AlertWatcherStart(clientset, naro.GetString("alerts.AlertsNamespace"), naro.GetString("alerts.AlertConfigMap"), alertCh)
+		controller.AlertWatcherStart(clientset, naro.GetString("alerts.AlertsNamespace"), naro.GetString("alerts.ConfigMapLabel"), alertCh)
 		log.Info("Watcher - Stopping alerts configmap controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
