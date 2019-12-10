@@ -24,7 +24,7 @@ MaxTasks = 2
 
 [alerts]
 AlertsNamespace  = "node-alert-generator" #node-problem-detector
-AlertConfigMap   = "npd-alerts"
+ConfigMapLabel   = "autoremediation=yes"
 
 [results]
 ResultsNamespace = "node-alert-responder"

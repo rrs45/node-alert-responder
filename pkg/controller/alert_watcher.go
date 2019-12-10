@@ -17,7 +17,7 @@ import (
 	"github.com/box-node-alert-responder/pkg/types"
 )
 
-//AlertResponderController struct for encapsulating generic Informer methods and configMap informer
+//AlertResponderController struct for encapsulating generic Informer methods and configMapLabel informer
 type AlertResponderController struct {
 	informerFactory   informers.SharedInformerFactory
 	configMapInformer coreInformers.ConfigMapInformer
@@ -38,7 +38,7 @@ func (c *AlertResponderController) Run(stopCh chan struct{}) error {
 
 func (c *AlertResponderController) configMapAdd(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("ConfigMap Watcher - Received configMap add event for %s in watcher.go ", configMap.Name)
+	log.Infof("ConfigMap Watcher - Received config map add event for %s in watcher.go ", configMap.Name)
 	for nodeCond, attr := range configMap.Data {
 		var alertMap types.AlertMap
 		err := json.Unmarshal([]byte(attr), &alertMap.Attr )
@@ -53,7 +53,7 @@ func (c *AlertResponderController) configMapAdd(obj interface{}) {
 
 func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 	newconfigMap := newCM.(*v1.ConfigMap)
-	log.Infof("ConfigMap Watcher - Received configMap update event for %s in watcher.go ", newconfigMap.Name)
+	log.Infof("ConfigMap Watcher - Received config map update event for %s in watcher.go ", newconfigMap.Name)
 	for nodeCond, attr := range newconfigMap.Data {
 		var alertMap types.AlertMap
 		err := json.Unmarshal([]byte(attr), &alertMap.Attr )
@@ -68,7 +68,7 @@ func (c *AlertResponderController) configMapUpdate(oldCM, newCM interface{}) {
 
 func (c *AlertResponderController) configMapDelete(obj interface{}) {
 	configMap := obj.(*v1.ConfigMap)
-	log.Infof("ConfigMap Watcher - Received configMap delete event for %s in watcher.go", configMap.Name)
+	log.Infof("ConfigMap Watcher - Received config map delete event for %s in watcher.go", configMap.Name)
 }
 
 //NewAlertResponderController creates a initializes AlertResponderController struct
@@ -96,7 +96,7 @@ func NewAlertResponderController(informerFactory informers.SharedInformerFactory
 }
 
 //AlertWatcherStart starts the controller
-func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, configMap string, alertch chan<- types.AlertMap) {
+func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, configMapLabel string, alertch chan<- types.AlertMap) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -105,7 +105,7 @@ func AlertWatcherStart(clientset *kubernetes.Clientset, AlertsNamespace string, 
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, AlertsNamespace,
 		func(opt *metav1.ListOptions) {
-			opt.FieldSelector = fmt.Sprintf("metadata.name=%s", configMap)
+			opt.LabelSelector = fmt.Sprintf("%s", configMapLabel)
 		})
 	controller := NewAlertResponderController(factory, alertch)
 	stop := make(chan struct{})
