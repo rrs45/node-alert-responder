@@ -116,6 +116,7 @@ creds := credentials.NewTLS(&tls.Config{
 		if podName == "" || podIP == "" || podNode == ""{
 			n := rand.Intn(10)
 			log.Infof("Scheduler Routine%d - No workers available, sleeping for %d seconds", routineID, n)
+			log.Infof("Scheduler Routine%d - worker cache entries: %#v", routineID, workerCache.GetAll())
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else {

@@ -13,7 +13,7 @@ pipeline {
     }
     stages {
         stage('Build') {
-            //when { branch 'master'  }
+            when { branch 'master'  }
             steps {
                 githubCheck(
                     'Build Image': {
@@ -23,25 +23,31 @@ pipeline {
                 )
             }
         }
-        stage('Deploy To VSV1') {
-            when { branch 'master'  }
+        /*stage('Deploy To Sandbox') {
+            when { branch 'rajsingh'  }
             steps {
-                deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
-            }
-        }
+                deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
+            } 
+        } */
         stage('Deploy To DSV31') {
             when { branch 'master'  }
             steps {
                 deploy cluster: 'dsv31', app: SKYNET_APP, watch: false, canary: false
             }
         }
-        stage('Deploy To Sandbox') {
-            when { branch 'rajsingh'  }
-            steps {
-                deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
-            } 
-        }
         
+       /* stage('Deploy To VSV1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
+        stage('Deploy To LV7') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
+            }
+        } */
     }
         post {
         always {
