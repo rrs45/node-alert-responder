@@ -10,22 +10,6 @@ const RFC3339local = "2006-01-02T15:04:05Z"
 //LocalTZ is the local time zone
 const LocalTZ = "America/Los_Angeles"
 
-
-//ActionMap represents parameters to define an action
-type ActionMap struct { 
-	Action string
-	SuccessWait string
-	FailedRetry int
-}
-
-//AlertAction is a struct mapping alerts to actions
-type AlertAction struct {
-	Node   string
-	Condition string // Condition name
-	Action string
-	Params string
-}
-
 //Action defines format for alerts detected from NPD
 type Action struct {
 	Timestamp time.Time
@@ -45,7 +29,7 @@ type AlertMap struct {
 //ActionResult is a struct to represent result of a remediation
 type ActionResult struct {
 	Timestamp  time.Time `json:"timestamp"` // Time when the play kicked off
-	ActionName string    `json:"name"`      // Script or Ansible play name
+	Condition string    `json:"condition"`      // Script or Ansible play name
 	Success    bool      `json:"success"`   // Whether it was fixed or not
 	Retry      int       `json:"retry"`     // Number of times to retry the play if not successful
 	Worker     string    `json:"worker"`    // Worker pod who worked on this node & issue
@@ -54,15 +38,20 @@ type ActionResult struct {
 //InProgress struct represents item fields for in-progress cache
 type InProgress struct {
 	Timestamp  time.Time
-	ActionName string
+	Condition string
 	Worker     string
 }
 
-//Todo struct stores items for Todo cache
-type Todo struct {
-	Timestamp  time.Time
+//TodoItem struct stores items for Todo cache
+type TodoItem struct {
+	Node string
+	Condition string
+	Source string
 	Action string
-	Params string	
+	Params string
+	SuccessWait string
+	FailedRetry string
+	Timestamp  time.Time	
 
 }
 
@@ -72,4 +61,3 @@ type Worker struct {
 	TaskCount int
 	Node string
 }
-

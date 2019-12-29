@@ -3,7 +3,6 @@ package cache
 import (
 	"sync"
 	"time"
-	"strings"
 
 	"github.com/box-node-alert-responder/pkg/types"
 
@@ -13,17 +12,20 @@ import (
 
 //ResultsCache is a struct to store results of remediation
 type ResultsCache struct {
-	Items               map[string]types.ActionResult //{"node_condition": types.ActionResult{}}
+	Items               map[string]map[string]types.ActionResult
 	CacheExpireInterval time.Duration
+	FailedCountInterval time.Duration
 	Locker              *sync.RWMutex
 }
 
 //NewResultsCache instantiates and returns a new cache
-func NewResultsCache(cacheExpireInterval string) *ResultsCache {
-	interval, _ := time.ParseDuration(cacheExpireInterval)
+func NewResultsCache(cacheExpireInterval string, failedCountInterval string) *ResultsCache {
+	expireInterval, _ := time.ParseDuration(cacheExpireInterval)
+	failedInterval, _ := time.ParseDuration(failedCountInterval)
 	return &ResultsCache{
-		Items:               make(map[string]types.ActionResult),
-		CacheExpireInterval: interval,
+		Items:               make(map[string]map[string]types.ActionResult),
+		CacheExpireInterval: expireInterval,
+		FailedCountInterval: failedInterval,
 		Locker:              new(sync.RWMutex),
 	}
 }
@@ -36,10 +38,15 @@ func (cache *ResultsCache) PurgeExpired() {
 		case <-ticker.C:
 			log.Debug("CacheManager - Attempting to delete expired entries")
 			cache.Locker.Lock()
-			for cond, result := range cache.Items {
-				if time.Since(result.Timestamp) > cache.CacheExpireInterval {
-					log.Debug("CacheManager - Deleting expired entry for ", cond)
-					delete(cache.Items, cond)
+			for node, actions  := range cache.Items {
+				for action, result := range actions {
+					if time.Since(result.Timestamp) > cache.CacheExpireInterval {
+						//log.Debug("CacheManager - Deleting expired entry for ", )
+						delete(cache.Items[node], action)
+					}
+				}
+				if len(cache.Items[node]) == 0 {
+					delete(cache.Items, node)
 				}
 			}
 			cache.Locker.Unlock()
@@ -49,54 +56,57 @@ func (cache *ResultsCache) PurgeExpired() {
 }
 
 //Set creates an entry in the map if it doesnt exist
-// or overwrites the timestamp and retry count if it exists
-func (cache *ResultsCache) Set(cond string, result types.ActionResult) {
+// or overwrites the timestamp and increments retry count if it exists
+func (cache *ResultsCache) Set(node string, action string, result types.ActionResult) {
 	cache.Locker.Lock()
+	cache.Locker.Unlock()
 	var retryCount int
-	if prevResult, found := cache.Items[cond]; found {
-		log.Debugf("Results Cache - %s found in cache", cond)
+	if prevAction, nodeFound := cache.Items[node]; nodeFound {
+		if prevResult, actionFound := prevAction[action]; actionFound {
+			log.Debugf("Results Cache - [node:%s, action:%s] found in cache", node, action)
+			if result.Success {
+				log.Debugf("Results Cache - [node:%s, action:%s] Current action was successful, resetting retry count", node, action)
+				retryCount = 0
+			} else {
+					log.Debugf("Results Cache - [node:%s, action:%s] Current action failed, incrementing retry count", node, action)
+					retryCount = prevResult.Retry + 1
+				}
+		}
+	 } else {
+		log.Debugf("Results Cache - [node:%s, action:%s] not found in cache", node, action)
 		if result.Success {
-			log.Debugf("Results Cache - Current action was successful for %s, resetting retry count", cond)
+			log.Debugf("Results Cache - [node:%s, action:%s] Current action was successful, resetting retry count", node, action)
 			retryCount = 0
 		} else {
-				log.Debugf("Results Cache - Current action failed for %s, incrementing retry count", cond)
-				retryCount = prevResult.Retry + 1
-			}
-	} else {
-		log.Debugf("Results Cache - %s not found in cache", cond)
-		if result.Success {
-			log.Debugf("Results Cache - Current action was successful for %s, resetting retry count", cond)
-			retryCount = 0
-		} else {
-			log.Debugf("Results Cache - Current action failed for %s, incrementing retry count", cond)
+			log.Debugf("Results Cache - [node:%s, action:%s] Current action failed, incrementing retry count", node, action)
 			retryCount = 1
 		}
 		
 	}
 
-	cache.Items[cond] = types.ActionResult{
+	cache.Items[node][action] = types.ActionResult{
 		Timestamp: result.Timestamp,
-		ActionName: result.ActionName,
+		Condition: result.Condition,
 		Success: result.Success,
 		Retry: retryCount,
 		Worker: result.Worker,
-	}
-	cache.Locker.Unlock()
+		}
+	
 }
 
 
 //GetAll returns current entries of a cache
-func (cache *ResultsCache) GetAll() map[string]types.ActionResult {
+func (cache *ResultsCache) GetAll() map[string]map[string]types.ActionResult {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	return cache.Items
 }
 
 //GetItem returns value of a given key and whether it exist or not
-func (cache *ResultsCache) GetItem(key string) (types.ActionResult, bool) {
+func (cache *ResultsCache) GetItem(node string, action string) (types.ActionResult, bool) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
-	val, found := cache.Items[key]
+	val, found := cache.Items[node][action]
 	if found {
 		return val, true
 	}
@@ -105,13 +115,15 @@ func (cache *ResultsCache) GetItem(key string) (types.ActionResult, bool) {
 
 //GetFailedNodeCount returns count of all unique nodes
 func (cache *ResultsCache) GetFailedNodeCount() int {
-	nodes := make(map[string]struct{})
+	count := 0  
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
-	for key, val := range cache.Items {
-		if !val.Success {
-			nodes[strings.Split(key, "_")[0]] = struct{}{}
+	for _, actions := range cache.Items {
+		for _, result := range actions {
+			if time.Since(result.Timestamp) < cache.FailedCountInterval && !result.Success {
+					count++
+			}
 		}
 	}
-	return len(nodes)
+	return count
 }

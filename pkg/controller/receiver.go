@@ -38,25 +38,24 @@ func NewReceiver(resultsCache *cache.ResultsCache, progressCache *cache.InProgre
 
 //ResultUpdate updates the respective caches
 func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult) (*workerpb.TaskAck, error) {
-	cond := result.Node+"_"+result.Condition
 	location, err := time.LoadLocation(types.LocalTZ)
     if err != nil {
-		log.Fatalf("Scheduler - Unable to load time zone: %v", err)
+		log.Fatalf("Receiver - [node:%s, action:%s] Unable to load time zone: %v", result.Node, result.Condition, err)
     }
-	log.Infof("Receiver - Received result for %s", cond)
+	log.Infof("Receiver - [node:%s, action:%s] Received result", result.Node, result.Condition)
 	epoch := result.Timestamp.GetSeconds()
 	t := time.Unix(epoch,0).In(location)
-	log.Debugf("Receiver - Deleting %s in inprogress cache", cond)
+	log.Debugf("Receiver - [node:%s, action:%s] Deleting %s in inprogress cache", result.Node, result.Condition)
 	r.ProgressCache.DelItem(result.Node, result.Condition)
-	log.Debugf("Receiver - Setting %s in results cache", cond)
+	log.Debugf("Receiver - [node:%s, action:%s] Setting %s in results cache", result.Node, result.Condition)
 	//Set dummy Retry as it will be overwritten while saving in cache
-	r.ResultsCache.Set(cond, types.ActionResult{
+	r.ResultsCache.Set(result.Node, result.Action, types.ActionResult{
 							Timestamp: t, 
-							ActionName: result.Action,
+							Condition: result.Condition,
 							Success: result.Success,
 							Retry: 0,
 							Worker: result.Worker,}	)
-	log.Debugf("Receiver - Reducing task count for worker:%s in worker cache", result.Worker)
+	log.Debugf("Receiver - [node:%s, action:%s] Reducing task count for worker:%s in worker cache", result.Node, result.Condition, result.Worker)
 	r.WorkerCache.Decrement(result.Worker)
 
 	return &workerpb.TaskAck {
@@ -155,10 +154,10 @@ creds := credentials.NewTLS(&tls.Config{
 			for cond, status := range result.Items {
 				alert := strings.Split(cond, "_")
 				log.Infof("Receiver - %s is currently working on %s", podName, cond)
-				log.Debugf("Receiver - Seeting %s in inProgress cache", cond)
-				progressCache.Set(alert[0], alert[1], types.InProgress{
+				log.Debugf("Receiver - Setting %s in inProgress cache", cond)
+				progressCache.Set(alert[0], status.Action, types.InProgress{
 						Timestamp: time.Now(),
-						ActionName: status.Action,
+						Condition: alert[1],
 						Worker: status.Worker, })
 			}
 		}

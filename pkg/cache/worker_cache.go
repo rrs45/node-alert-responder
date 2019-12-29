@@ -22,14 +22,18 @@ func NewWorkerCache() *WorkerCache {
 
 //SetNew appends entry to the map
 func (cache *WorkerCache) SetNew(worker string, ip string, node string) {
-    log.Debugf("Worker Cache - Setting new worker:%s with IP:%s in cache", worker, ip)
-	cache.Locker.Lock()
-	cache.Items[worker] = types.Worker{
-						IP: ip,
-						TaskCount: 0,
-						Node: node,
-						}
-	cache.Locker.Unlock()
+	if  _, found := cache.Items[worker]; !found{
+		if  ip != "" && node != "" {
+			log.Infof("Worker Cache - Setting new worker:%s with IP:%s in cache", worker, ip)
+			cache.Locker.Lock()
+			cache.Items[worker] = types.Worker{
+								IP: ip,
+								TaskCount: 0,
+								Node: node,
+								}
+			cache.Locker.Unlock()
+		}
+	}
 }
 
 //Increment appends entry to the map

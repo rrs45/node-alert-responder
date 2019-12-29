@@ -106,10 +106,10 @@ func main() {
 		panic(err)
 	}
 	log.Info("Successfully generated k8 client for node-alert-responder")
-	alertCh := make(chan types.AlertMap)
-	resultsCache := cache.NewResultsCache(naro.GetString("cache.CacheExpireInterval"))
+	todoCh := make(chan types.TodoItem)
+	taskCh := make(chan types.TodoItem, 500)
+	resultsCache := cache.NewResultsCache(naro.GetString("resultsCache.CacheExpireInterval"), naro.GetString("resultsCache.FailedCountInterval"))
 	inProgressCache := cache.NewInProgressCache(naro.GetString("cache.CacheExpireInterval"))
-	todoCache := cache.NewTodoCache(naro.GetString("cache.CacheExpireInterval"))
 	workerCache := cache.NewWorkerCache()
 	receiver := controller.NewReceiver(resultsCache, inProgressCache, workerCache)
 	
@@ -154,7 +154,7 @@ func main() {
 	//AlertWatcher
 	go func() {
 		log.Info("Starting alerts configmap controller for node-alert-responder")
-		controller.AlertWatcherStart(clientset, naro.GetString("alerts.AlertsNamespace"), naro.GetString("alerts.ConfigMapLabel"), alertCh)
+		controller.AlertWatcherStart(clientset, naro.GetString("alerts.AlertsNamespace"), naro.GetString("alerts.ConfigMapLabel"), todoCh)
 		log.Info("Watcher - Stopping alerts configmap controller for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -166,7 +166,7 @@ func main() {
 	go func() {
 		log.Info("Starting remediation filter for node-alert-responder")
 		maxDrainedInt, _ := strconv.Atoi(conf.MaxDrained)
-		controller.Remediate(clientset, resultsCache, inProgressCache , alertCh, todoCache, maxDrainedInt)
+		controller.Remediate(clientset, resultsCache, inProgressCache , todoCh, taskCh, maxDrainedInt)
 		log.Info("Updater - Stopping updater for node-alert-responder")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -177,7 +177,7 @@ func main() {
 	//Scheduler
 	go func() {
 		log.Info("Starting scheduler for node-alert-responder")
-		controller.ScheduleTask(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, todoCache, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"), conf.ServerName)
+		controller.ScheduleTask(naro.GetString("certs.cert_file"), naro.GetString("certs.key_file"), naro.GetString("certs.ca_cert_file"), workerCache, inProgressCache, todoCh, naro.GetInt("worker.MaxTasks"), naro.GetString("worker.WorkerPort"), conf.ServerName)
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

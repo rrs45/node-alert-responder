@@ -17,7 +17,7 @@ import (
 //Update creates config map if it doesnt exist and
 //updates the config map with alerts received from watcher
 func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUpdateInterval string, resultsCache *cache.ResultsCache) {
-	bufCur := make(map[string]types.ActionResult)
+	bufCur := make(map[string]map[string]types.ActionResult)
 	buf := make(map[string]string)
 	frequency, err := time.ParseDuration(resultsUpdateInterval)
 	if err != nil {
@@ -67,7 +67,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, resultsUp
 				}
 			}
 			buf = make(map[string]string)
-			bufCur = make(map[string]types.ActionResult)
+			bufCur = make(map[string]map[string]types.ActionResult)
 		}
 		
 	}
@@ -100,15 +100,17 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string, resul
 		}
 	} else {
 		log.Infof("ConfigMap Updater - Found existing configmap:%s , updating results cache", name)
-		for cond, result := range nroCM.Data {
-			var actionResult types.ActionResult
-			err := json.Unmarshal([]byte(result), &actionResult )
-			if err != nil {
-				log.Errorf("ConfigMap Updater - Could not unmarshall into JSON:%v", err)
-				return
+		for node, actions := range nroCM.Data {
+			var actionResult map[string]types.ActionResult
+			err := json.Unmarshal([]byte(actions), &actionResult )
+				if err != nil {
+					log.Errorf("ConfigMap Updater - Could not unmarshall into JSON:%v", err)
+					return
+				}
+			for action, result := range actionResult {
+				//Populate results cache
+				resultsCache.Set(node, action, result)
 			}
-			//Populate results cache
-			resultsCache.Set(cond, actionResult)
 		}
 
 	}

@@ -45,20 +45,27 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 //ValidOrDie checks some of the options are valid
 func ValidOrDie(aro *viper.Viper) {
 	log.Infof("Options - %v",aro.AllSettings())
-	_, err := time.ParseDuration(aro.GetString("cache.CacheExpireInterval"))
+	_, err := time.ParseDuration(aro.GetString("resultsCache.CacheExpireInterval"))
 	if err != nil {
-		log.Error("Options - Incorrect cache.CacheExpireInterval, sample format: 10s or 1m or 1h; ", err)
-		log.Panic("Incorrect options")
-	}
-	_, err1 := time.ParseDuration(aro.GetString("results.ResultsUpdateInterval"))
-	if err1 != nil {
-		log.Error("Options - Incorrect results.ResultsUpdateInterval, sample format: 10s or 1m or 1h; ", err1)
+		log.Error("Options - Incorrect resultsCache.CacheExpireInterval, sample format: 10s or 1m or 1h; ", err)
 		log.Panic("Incorrect options")
 	}
 
-	_, err2 := time.ParseDuration(aro.GetString("general.initial_wait_time"))
-	if err2 != nil {
-		log.Error("Options - Incorrect general.InitialWaitTime, sample format: 10s or 1m or 1h; ", err1)
+	_, err1 := time.ParseDuration(aro.GetString("resultsCache.FailedCountInterval"))
+	if err1 != nil {
+		log.Error("Options - Incorrect resultsCache.FailedCountInterval, sample format: 10s or 1m or 1h; ", err1)
+		log.Panic("Incorrect options")
+	}
+
+	_, err2 := time.ParseDuration(aro.GetString("results.ResultsUpdateInterval"))
+	if err1 != nil {
+		log.Error("Options - Incorrect results.ResultsUpdateInterval, sample format: 10s or 1m or 1h; ", err2)
+		log.Panic("Incorrect options")
+	}
+
+	_, err3 := time.ParseDuration(aro.GetString("general.initial_wait_time"))
+	if err3 != nil {
+		log.Error("Options - Incorrect general.InitialWaitTime, sample format: 10s or 1m or 1h; ", err3)
 		log.Panic("Incorrect options")
 	}
 

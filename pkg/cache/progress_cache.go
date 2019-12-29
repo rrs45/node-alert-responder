@@ -10,7 +10,7 @@ import (
 
 //InProgressCache is a struct to store InProgress of remediation
 type InProgressCache struct {
-	Items               map[string]map[string]types.InProgress
+	Items               map[string]map[string]types.InProgress 
 	CacheExpireInterval time.Duration
 	Locker              *sync.RWMutex
 }
@@ -19,7 +19,7 @@ type InProgressCache struct {
 func NewInProgressCache(cacheExpireInterval string) *InProgressCache {
 	interval, _ := time.ParseDuration(cacheExpireInterval)
 	return &InProgressCache{
-		Items:               make(map[string]map[string]types.InProgress), //{node:{condition:{Inprogress}}}
+		Items:               make(map[string]map[string]types.InProgress), //{node:{action:{Inprogress}}}
 		CacheExpireInterval: interval,
 		Locker:              new(sync.RWMutex),
 	}
@@ -33,11 +33,11 @@ func (cache *InProgressCache) PurgeExpired() {
 		case <-ticker.C:
 			log.Debug("CacheManager - Attempting to delete expired entries")
 			cache.Locker.Lock()
-			for node, condItem := range cache.Items {
-				for cond, params := range condItem {
+			for node, actionItem := range cache.Items {
+				for action, params := range actionItem {
 					if time.Since(params.Timestamp) > cache.CacheExpireInterval {
-						log.Debug("CacheManager - Deleting expired entry for ", cond)
-						delete(cache.Items[node], cond)
+						log.Debug("CacheManager - Deleting expired entry for ", action)
+						delete(cache.Items[node], action)
 					}
 				}
 					if len(cache.Items[node]) == 0 {
@@ -60,7 +60,7 @@ func (cache *InProgressCache) Set(node string, condition string, action types.In
 		cache.Items[node] = cond
 	}
 	cache.Items[node][condition] = action
-	log.Debugf("Progress cache - Setting %+v", cache.Items)
+	log.Infof("Progress cache - Setting %+v", cache.Items)
 }
 
 //GetAll returns current entries of a cache
@@ -77,15 +77,15 @@ func (cache *InProgressCache) Count() int {
 	return len(cache.Items)
 }
 
-//GetCondition returns value of a given key and whether it exist or not
-func (cache *InProgressCache) GetCondition(node string, condition string) (types.InProgress, bool) {
+//GetAction returns value of a given key and whether it exist or not
+func (cache *InProgressCache) GetAction(node string, action string) (types.InProgress, bool) {
 	cache.Locker.RLock()
 	defer cache.Locker.RUnlock()
 	_, found := cache.Items[node]
 	if found {
-		condVal, condFound := cache.Items[node][condition]
-		if 	condFound {
-			return condVal, true
+		actionVal, actionFound := cache.Items[node][action]
+		if 	actionFound {
+			return actionVal, true
 		}
 	}
 	return types.InProgress{}, false
@@ -103,13 +103,13 @@ func (cache *InProgressCache) GetNode(node string) (map[string]types.InProgress,
 }
 
 //DelItem deletes a cache item with a given key
-func (cache *InProgressCache) DelItem(node string, condition string)  {
+func (cache *InProgressCache) DelItem(node string, action string)  {
 	cache.Locker.Lock()
-	delete(cache.Items[node],condition)
+	delete(cache.Items[node],action)
 	if len(cache.Items[node]) == 0 {
 		delete(cache.Items, node)
 	}
-	log.Debugf("Progress cache - deleting %v", cache.Items)
+	log.Infof("Progress cache - deleting %v", cache.Items)
 	cache.Locker.Unlock()
 }
 
