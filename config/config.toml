@@ -31,5 +31,7 @@ ResultsNamespace = "node-alert-responder"
 ResultsConfigMap = "nro-results"
 ResultsUpdateInterval = "30s"
 
-[cache]
+[resultsCache]
 CacheExpireInterval = "48h"
+#All failed actions within this interval will be checked against max failed nodes
+FailedCountInterval = "1h"

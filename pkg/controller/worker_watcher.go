@@ -47,18 +47,18 @@ func (c *AlertWorkerController) podAdd(obj interface{}) {
 func (c *AlertWorkerController) podUpdate(oldPd, newPd interface{}) {
 	newpod := newPd.(*v1.Pod)
 	log.Infof("Worker Watcher - Received pod update event for %s ", newpod.Name)
-	//c.workerCache.Set(newpod.Name, newpod.Status.PodIP)
+	c.workerCache.SetNew(newpod.Name, newpod.Status.PodIP, newpod.Spec.NodeName)
 }
 
 func (c *AlertWorkerController) podDelete(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	log.Infof("Worker Watcher - Received pod delete event for %s ", pod.Name)
 	c.workerCache.DelItem(pod.Name)	
-	for node, conditions := range c.progressCache.GetAll() {
-		for cond, params := range conditions {
+	for node, actions := range c.progressCache.GetAll() {
+		for action, params := range actions {
 			if params.Worker == pod.Name {
-				log.Infof("Worker Watcher - Deleting %s, %s from InProgress cache", node, cond)
-				c.progressCache.DelItem(node, cond)
+				log.Infof("Worker Watcher - Deleting %s, %s from InProgress cache", node, action)
+				c.progressCache.DelItem(node, action)
 			}
 		}
 	}

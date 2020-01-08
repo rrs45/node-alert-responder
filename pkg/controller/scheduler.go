@@ -17,7 +17,7 @@ import (
 )
 
 //ScheduleTask schedules a given task to worker
-func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, todoCache *cache.TodoCache, maxTasks int, workerPort string, tlsName string) {
+func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, progressCache *cache.InProgressCache, taskCh <-chan types.TodoItem, maxTasks int, workerPort string, tlsName string) {
 	location, err := time.LoadLocation(types.LocalTZ)
     if err != nil {
 		log.Fatalf("Scheduler - Unable to load time zone: %v", err)
@@ -25,83 +25,74 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 	
 	//limit := make(chan struct{}, maxTasks)
 
-	for {	
-		if todoCache.TodoList.Len() > 0 {
-			log.Infof("Scheduler - Todo cache has %d", todoCache.TodoList.Len())
-			task, _ := todoCache.GetItem()
-			if task.Node == "" || task.Condition == "" || task.Action == "" {
-				log.Errorf("Scheduler - Not enough value to process: %+v", task)
-				todoCache.DelItem()
-				continue
-			}
-			//log.Infof("Scheduler - todo cache item: %+v", task)
-			//limit <- struct{}{}
-			routineID := 100 + rand.Intn(999-100)
-			log.Infof("Scheduler Routine%d - deleting %s from todo cache", routineID, task.Node+"_"+task.Condition)
-			todoCache.DelItem()
-			
-			log.Infof("Scheduler - Starting Routine%d to Work on node: %s and condition: %s", routineID, task.Node, task.Condition)
+	for {
+		select {
+			case task := <-taskCh:
+				log.Debugf("%+v",task)	
+				if task.Node == "" || task.Condition == "" || task.Action == "" {
+					log.Errorf("Scheduler - Not enough value to process: %+v", task)
+					continue
+				}
+				//limit <- struct{}{}
+				//routineID := 100 + rand.Intn(999-100)
+
+				log.Infof("Scheduler - [node:%s, action:%s, condition:%s] Scheduling task", task.Node, task.Action, task.Condition)
 			//go func() {
-				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node, routineID, tlsName)
+				conn, podName := getClient(certFile, keyFile, caCertFile, workerCache,maxTasks,workerPort, task.Node, tlsName)
 				defer conn.Close()
 				client := workerpb.NewTaskServiceClient(conn)
 				tNow, err := time.ParseInLocation(types.RFC3339local, time.Now().Format(types.RFC3339local), location)
 				if err != nil { 
-					log.Errorf("Scheduler Routine%d - unable to parse time: %v", routineID, err)
+					log.Errorf("Scheduler - [node:%s, action:%s, condition:%s] unable to parse time: %v", task.Node, task.Action, task.Condition, err)
 					return
 				}
 				inProgressItem := types.InProgress{
 					Timestamp: tNow,
-					ActionName: task.Action,
+					Condition: task.Condition,
 					Worker: podName,
 				}
-				log.Infof("Scheduler Routine%d - Setting node:%s and condition:%s in inprogress cache", routineID, task.Node, task.Condition)
-				progressCache.Set(task.Node, task.Condition, inProgressItem)
+				log.Infof("Scheduler - [node:%s, action:%s, condition:%s] adding entry inprogress cache", task.Node, task.Action, task.Condition)
+				progressCache.Set(task.Node, task.Action, inProgressItem)
 
 				req := &workerpb.TaskRequest{
 					Node: task.Node,
 					Condition: task.Condition,
 					Action: task.Action,
 					Params: task.Params,
+					Source: task.Source,
 				}
-				log.Infof("Scheduler Routine%d - sending req: %+v", routineID, req)
+				log.Infof("Scheduler - [node:%s, action:%s, condition:%s] sending req: %+v", task.Node, task.Action, task.Condition, req)
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
-					log.Errorf("Scheduler Routine%d - Unable to send request to worker: %v", routineID, err)
-					log.Debugf("Scheduler Routine%d - Deleting node:%s and condition:%s in inprogress cache", routineID, task.Node, task.Condition)
-					progressCache.DelItem(task.Node, task.Condition)
+					log.Errorf("Scheduler - [node:%s, action:%s, condition:%s] Unable to send request to worker: %v, removing entry from inProgress cache", task.Node, task.Action, task.Condition, err)
+					progressCache.DelItem(task.Node, task.Action)
 					return
 				}
-				log.Debugf("Scheduler Routine%d - Successfully sent task: %v to worker", routineID, res)
+				log.Debugf("Scheduler - [node:%s, action:%s, condition:%s] Successfully sent task: %v to worker", task.Node, task.Action, task.Condition, res)
 				
 				//<-limit
-				//}()
-				
-			} else {
-				log.Infof("Scheduler - No tasks in Todo cache waiting 60 seconds")
-				time.Sleep(time.Duration(60) * time.Second)
-				continue
-			}
+				//}()				
+		}	
 	}	
-}	
+}
 
-func getClient(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string, routineID int, tlsName string) (*grpc.ClientConn, string) {	
+func getClient(certFile string, keyFile string, caCertFile string, workerCache *cache.WorkerCache, maxTasks int, workerPort string, node string, tlsName string) (*grpc.ClientConn, string) {	
 // Load the certificates from disk
 certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 if err != nil {
-	log.Fatalf("Scheduler Routine%d - Could not load certificates: %v", routineID, err)
+	log.Fatalf("Scheduler - Could not load certificates: %v", err)
 }
 
 // Create a certificate pool from the certificate authority
 certPool := x509.NewCertPool()
 ca, err := ioutil.ReadFile(caCertFile)
 if err != nil {
-	log.Fatalf("Scheduler Routine%d - Could read CA certificates: %v", routineID, err)
+	log.Fatalf("Scheduler - Could read CA certificates: %v", err)
 }
 
 // Append the client certificates from the CA
 if ok := certPool.AppendCertsFromPEM(ca); !ok {
-	log.Fatalf("Scheduler Routine%d - Could not append CA certs to pool: %v", routineID, err)
+	log.Fatalf("Scheduler - Could not append CA certs to pool: %v", err)
 }
 
 // Create the TLS credentials for transport
@@ -115,18 +106,18 @@ creds := credentials.NewTLS(&tls.Config{
 		podName, podIP, podNode = workerCache.GetNext(maxTasks, node)
 		if podName == "" || podIP == "" || podNode == ""{
 			n := rand.Intn(10)
-			log.Infof("Scheduler Routine%d - No workers available, sleeping for %d seconds", routineID, n)
-			log.Infof("Scheduler Routine%d - worker cache entries: %#v", routineID, workerCache.GetAll())
+			log.Infof("Scheduler - No workers available, sleeping for %d seconds", n)
+			log.Infof("Scheduler - worker cache entries: %#v", workerCache.GetAll())
 			time.Sleep(time.Duration(n)*time.Second)
 			continue
 		} else {
 			//Update worker cache
 			workerCache.Increment(podName)
-			log.Infof("Scheduler Routine%d - Found availble worker:%s with IP:%s", routineID, podName, podIP)
+			log.Infof("Scheduler - Found availble worker:%s with IP:%s", podName, podIP)
 			conn, err := grpc.Dial(fmt.Sprintf("%s:%s",podIP, workerPort), grpc.WithTransportCredentials(creds))
 			if err != nil {
 				n := rand.Intn(10)
-				log.Errorf("Scheduler Routine%d - Unable to connect to worker: %v , sleep %d seconds", routineID, err, n)
+				log.Errorf("Scheduler - Unable to connect to worker: %v , sleep %d seconds", err, n)
 				time.Sleep(time.Duration(n)*time.Second)
 				//Update worker cache
 				workerCache.Decrement(podName)
@@ -139,6 +130,6 @@ creds := credentials.NewTLS(&tls.Config{
 
 }
 
-func init() {
+/*func init() {
 	rand.Seed(time.Now().UnixNano())
-}
+}*/
