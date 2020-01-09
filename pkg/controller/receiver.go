@@ -46,7 +46,7 @@ func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult
 	epoch := result.Timestamp.GetSeconds()
 	t := time.Unix(epoch,0).In(location)
 	log.Debugf("Receiver - [node:%s, action:%s] Deleting %s in inprogress cache", result.Node, result.Condition)
-	r.ProgressCache.DelItem(result.Node, result.Condition)
+	r.ProgressCache.DelItem(result.Node)
 	log.Debugf("Receiver - [node:%s, action:%s] Setting %s in results cache", result.Node, result.Condition)
 	//Set dummy Retry as it will be overwritten while saving in cache
 	r.ResultsCache.Set(result.Node, result.Action, types.ActionResult{
@@ -155,7 +155,8 @@ creds := credentials.NewTLS(&tls.Config{
 				alert := strings.Split(cond, "_")
 				log.Infof("Receiver - %s is currently working on %s", podName, cond)
 				log.Debugf("Receiver - Setting %s in inProgress cache", cond)
-				progressCache.Set(alert[0], status.Action, types.InProgress{
+				progressCache.Set(alert[0],  types.InProgress{
+						Action: status.Action,
 						Timestamp: time.Now(),
 						Condition: alert[1],
 						Worker: status.Worker, })

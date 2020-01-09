@@ -37,6 +37,7 @@ type ActionResult struct {
 
 //InProgress struct represents item fields for in-progress cache
 type InProgress struct {
+	Action    string
 	Timestamp  time.Time
 	Condition string
 	Worker     string
