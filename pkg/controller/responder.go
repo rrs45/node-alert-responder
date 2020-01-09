@@ -35,41 +35,35 @@ func scheduleFilter(item *types.TodoItem, resultsCache *cache.ResultsCache, prog
 	//Is any worker working on the given item.Node & condition
 	failedRetry, err :=  strconv.Atoi(item.FailedRetry)
 	if err != nil {
-		log.Errorf("Responder - [node:%s, action:%s] Could not convert string to int for failed_retry %s", item.Node, item.Action, item.FailedRetry)
+		log.Fatalf("Responder - [node:%s, action:%s] Could not convert string to int for failed_retry %s", item.Node, item.Action, item.FailedRetry)
 	}
 	if _, nodePresent := progressCache.GetNode(item.Node); !nodePresent{
-		if _, working := progressCache.GetAction(item.Node, item.Action); !working { 
-			log.Infof("Responder - [node:%s, action:%s] is not currently run by any worker", item.Node, item.Action)
-			if result, found := resultsCache.GetItem(item.Node, item.Condition); found {
-				log.Infof("Responder - [node:%s, action:%s] was worked previously by %s at %v", item.Node, item.Action, result.Worker, 	result.Timestamp)
-				if result.Success {
-					log.Infof("Responder - [node:%s, action:%s] Last run was successful", item.Node, item.Action)
-					if time.Since(result.Timestamp) > waitDur {
-						log.Infof("Responder - [node:%s, action:%s] Last successful run is more than success wait threshold of %v", item.Node, item.Action, waitDur)
-						return true
-					} 
-				log.Infof("Responder - [node:%s, action:%s] Last successful run for %s is less than success wait threshold of %v, ignoring", item.Node, item.Action,	 waitDur)
-				return false
-				} 
-				//If last run failed then check max retries
-				log.Infof("Responder - [node:%s, action:%s] Last run of failed", item.Node, item.Action)
-				if result.Retry <  failedRetry{
-					log.Infof("Responder - [node:%s, action:%s] failed %d times which is less than maxFailedRetry:%d ", item.Node, item.Action, result.Retry, failedRetry)
-					return true
-				}
-			
-				log.Infof("Responder - [node:%s, action:%s] failed on more than %d times hence ignoring", item.Node, item.Action, failedRetry)
-				return false
-
-			} 
-			log.Infof("Responder - [node:%s, action:%s] No record of previous runs in Results cache", item.Node, item.Action)
-			return true	
-		}
-		log.Infof("Responder - [node:%s, action:%s] is already being worked on hence ignoring", item.Node, item.Action)
-		return false
+		log.Infof("Responder - [node:%s, action:%s] is already being worked on hence ignoring", item.Node, item.Action )
+		return false 
 	}
-	log.Infof("Responder - [node:%s, action:%s] is already being worked on hence ignoring", item.Node, item.Action)
-	return false
-
+	log.Infof("Responder - [node:%s, action:%s] is not currently run by any worker", item.Node, item.Action)
+	if result, found := resultsCache.GetItem(item.Node, item.Condition); found {
+		log.Infof("Responder - [node:%s, action:%s] was worked previously by %s at %v", item.Node, item.Action, result.Worker, 	result.Timestamp)
+		if result.Success {
+			log.Infof("Responder - [node:%s, action:%s] Last run was successful", item.Node, item.Action)
+			if time.Since(result.Timestamp) > waitDur {
+				log.Infof("Responder - [node:%s, action:%s] Last successful run is more than success wait threshold of %v", item.Node, item.Action, waitDur)
+				return true
+			} 
+			log.Infof("Responder - [node:%s, action:%s] Last successful run for %s is less than success wait threshold of %v, ignoring", item.Node, item.Action,	 waitDur)
+			return false
+		}
+		//If last run failed then check max retries
+		log.Infof("Responder - [node:%s, action:%s] Last run of failed", item.Node, item.Action)
+		if result.Retry <  failedRetry{
+			log.Infof("Responder - [node:%s, action:%s] failed %d times which is less than maxFailedRetry:%d ", item.Node, item.Action, result.Retry, failedRetry)
+			return true
+		}
+	
+		log.Infof("Responder - [node:%s, action:%s] failed on more than %d times hence ignoring", item.Node, item.Action, failedRetry)
+		return false
+		}
+	log.Infof("Responder - [node:%s, action:%s] No record of previous runs in Results cache", item.Node, item.Action)
+	return true	
 }
 

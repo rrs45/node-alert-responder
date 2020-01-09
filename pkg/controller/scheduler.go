@@ -47,12 +47,13 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 					return
 				}
 				inProgressItem := types.InProgress{
+					Action: task.Action,
 					Timestamp: tNow,
 					Condition: task.Condition,
 					Worker: podName,
 				}
 				log.Infof("Scheduler - [node:%s, action:%s, condition:%s] adding entry inprogress cache", task.Node, task.Action, task.Condition)
-				progressCache.Set(task.Node, task.Action, inProgressItem)
+				progressCache.Set(task.Node,  inProgressItem)
 
 				req := &workerpb.TaskRequest{
 					Node: task.Node,
@@ -65,7 +66,7 @@ func ScheduleTask(certFile string, keyFile string, caCertFile string, workerCach
 				res, err := client.Task(context.Background(), req)
 				if err != nil {
 					log.Errorf("Scheduler - [node:%s, action:%s, condition:%s] Unable to send request to worker: %v, removing entry from inProgress cache", task.Node, task.Action, task.Condition, err)
-					progressCache.DelItem(task.Node, task.Action)
+					progressCache.DelItem(task.Node)
 					return
 				}
 				log.Debugf("Scheduler - [node:%s, action:%s, condition:%s] Successfully sent task: %v to worker", task.Node, task.Action, task.Condition, res)
