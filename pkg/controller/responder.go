@@ -42,7 +42,7 @@ func scheduleFilter(item *types.TodoItem, resultsCache *cache.ResultsCache, prog
 		return false 
 	}
 	log.Infof("Responder - [node:%s, action:%s] is not currently run by any worker", item.Node, item.Action)
-	if result, found := resultsCache.GetItem(item.Node, item.Condition); found {
+	if result, found := resultsCache.GetItem(item.Node, item.Action);  found {
 		log.Infof("Responder - [node:%s, action:%s] was worked previously by %s at %v", item.Node, item.Action, result.Worker, 	result.Timestamp)
 		if result.Success {
 			log.Infof("Responder - [node:%s, action:%s] Last run was successful", item.Node, item.Action)
