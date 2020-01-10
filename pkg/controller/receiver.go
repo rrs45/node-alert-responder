@@ -46,7 +46,7 @@ func (r *Receiver) ResultUpdate(ctx context.Context, result *workerpb.TaskResult
 	epoch := result.Timestamp.GetSeconds()
 	t := time.Unix(epoch,0).In(location)
 	log.Debugf("Receiver - [node:%s, action:%s] Deleting %s in inprogress cache if present", result.Node, result.Condition)
-	r.ProgressCache.DelItem(result.Node) 
+	r.ProgressCache.DelItem(result.Node)  
 	log.Debugf("Receiver - [node:%s, action:%s] Setting %s in results cache", result.Node, result.Condition)
 	//Set dummy Retry as it will be overwritten while saving in cache
 	r.ResultsCache.Set(result.Node, result.Action, types.ActionResult{
