@@ -24,7 +24,7 @@ pipeline {
             }
         }
         
-        /*stage('Deploy To Sandbox') {
+        stage('Deploy To Sandbox') {
             when { branch 'master'  }
             steps {
                 deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
@@ -42,7 +42,7 @@ pipeline {
             steps {
                 deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
             }
-        }*/
+        }
 
         stage('Deploy To VSV1-K8S-C1') {
             when { branch 'master'  }

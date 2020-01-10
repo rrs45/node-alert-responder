@@ -97,10 +97,12 @@ func (cache *InProgressCache) GetNode(node string) (types.InProgress, bool) {
 //DelItem deletes a cache item with a given key
 func (cache *InProgressCache) DelItem(node string)  {
 	cache.Locker.Lock()
-	log.Infof("Progress cache - deleting %s", node)
-	delete(cache.Items, node)
-	log.Infof("Progress cache - deleting %v", cache.Items)
-	cache.Locker.Unlock()
+	defer cache.Locker.Unlock()
+	if _, found := cache.Items[node]; found {
+		log.Infof("Progress cache - deleting %v", cache.Items[node])
+		delete(cache.Items, node)
+	}
+	log.Infof("Progress cache - %s already deleted", node)
 }
 
 
