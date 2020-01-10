@@ -71,7 +71,25 @@ func (cache *ResultsCache) Set(node string, action string, result types.ActionRe
 					log.Debugf("Results Cache - [node:%s, action:%s] Current action failed, incrementing retry count", node, action)
 					retryCount = prevResult.Retry + 1
 				}
+			log.Infof("Results Cache - [node:%s, action:%s] updating exiting node & action")	
+			cache.Items[node][action] = types.ActionResult{
+				Timestamp: result.Timestamp,
+				Condition: result.Condition,
+				Success: result.Success,
+				Retry: retryCount,
+				Worker: result.Worker,
+				}	
+		} else {
+			log.Infof("Results Cache - [node:%s, action:%s] updating exiting node with new action")
+			cache.Items[node][action] = types.ActionResult{
+											Timestamp: result.Timestamp,
+											Condition: result.Condition,
+											Success: result.Success,
+											Retry: retryCount,
+											Worker: result.Worker,
+									}
 		}
+
 	 } else {
 		log.Debugf("Results Cache - [node:%s, action:%s] not found in cache", node, action)
 		if result.Success {
@@ -81,16 +99,17 @@ func (cache *ResultsCache) Set(node string, action string, result types.ActionRe
 			log.Debugf("Results Cache - [node:%s, action:%s] Current action failed, incrementing retry count", node, action)
 			retryCount = 1
 		}
-		
+		log.Infof("Results Cache - [node:%s, action:%s] Adding new entry", node, action)
+		cache.Items[node] = map[string]types.ActionResult{
+										action: types.ActionResult{
+													Timestamp: result.Timestamp,
+													Condition: result.Condition,
+													Success: result.Success,
+													Retry: retryCount,
+													Worker: result.Worker,
+											},
+						}
 	}
-
-	cache.Items[node][action] = types.ActionResult{
-		Timestamp: result.Timestamp,
-		Condition: result.Condition,
-		Success: result.Success,
-		Retry: retryCount,
-		Worker: result.Worker,
-		}
 	
 }
 
